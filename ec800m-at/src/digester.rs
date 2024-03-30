@@ -17,7 +17,7 @@ use heapless::String;
 use log::{debug, info};
 
 #[derive(Default)]
-pub struct Ec800mDigester {}
+pub struct Ec800mDigester;
 
 impl Ec800mDigester {
     pub fn custom_error(buf: &[u8]) -> Result<(&[u8], usize), ParseError> {
@@ -37,10 +37,16 @@ impl Ec800mDigester {
         #[cfg(feature = "debug")]
         debug!("Custom success start {:?}", LossyStr(buf));
         let (_reminder, (head, data, tail)) = branch::alt((
-            // AT command
+            // AT
             sequence::tuple((
-                bytes::streaming::tag(b"+AT: "),
-                bytes::streaming::take_until("\r\n"),
+                bytes::streaming::tag("AT\r\r\n"),
+                bytes::streaming::tag("OK"),
+                bytes::streaming::tag("\r\n"),
+            )),
+            // ATE
+            sequence::tuple((
+                bytes::streaming::tag("ATE\r\r\n"),
+                bytes::streaming::tag("OK"),
                 bytes::streaming::tag("\r\n"),
             )),
             // OK
@@ -61,28 +67,39 @@ impl Digester for Ec800mDigester {
         #[cfg(feature = "debug")]
         let s = LossyStr(input);
         #[cfg(feature = "debug")]
-        info!("Digesting: {:?}", s);
+        debug!("Digesting: {:?}", s);
 
         // Incomplete. Eat the echo and do nothing else.
         let incomplete = (DigestResult::None, 0);
 
-        // 2. Match for URC's
+        //Generic success replies
+        match parser::success_response(input) {
+            Ok((_, (result, len))) => {
+                if len > 0 {
+                    #[cfg(feature = "debug")]
+                    debug!("general success resp match: {:?}, {}", result, len);
+                    return (result, len)
+                }
+            }
+            Err(nom::Err::Incomplete(_)) => return incomplete,
+            _ => {}
+        }
+
+        // Urc matchs
         match <URCMessages as Parser>::parse(input) {
             Ok((urc, len)) => return (DigestResult::Urc(urc), len),
             Err(ParseError::Incomplete) => return incomplete,
             _ => {}
         }
 
-        // 3. Parse for success responses
-        // Custom successful replies first, if any
+        // Cust success matches
         match (Ec800mDigester::custom_success)(input) {
             Ok((response, len)) => return (DigestResult::Response(Ok(response)), len),
             Err(ParseError::Incomplete) => return incomplete,
             _ => {}
         }
 
-        // 4. Parse for error responses
-        // Custom error matches first, if any
+        // Cust error matches
         match (Ec800mDigester::custom_error)(input) {
             Ok((response, len)) => {
                 return (

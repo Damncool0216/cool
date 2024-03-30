@@ -2,29 +2,28 @@ use crate::general::{
     resps::{NoResp, OkResp},
     types::OnOff,
 };
-use atat::atat_derive::AtatCmd;
+use atat::{atat_derive::AtatCmd, Error, InternalError};
 use heapless::String;
 
-use super::types::{DeleteType, GnssConfig, NmeaConfig, NmeaType, Outport};
+use super::{resps::NmeaResp, types::{DeleteType, GnssConfig, NmeaConfig, NmeaType, Outport}};
 
 /// 2.3.1.1 AT+QGPSCFG="outport" 配置NMEA语句输出端口
 #[derive(Clone, Debug, AtatCmd)]
-#[at_cmd("+QGPSCFG=\"outport\",", OkResp, timeout_ms = 600, value_sep = false)]
+#[at_cmd("+QGPSCFG", OkResp, timeout_ms = 600)]
 pub struct QGpsCfgOutPortSet {
-    out_port: String<19>,
+    #[at_arg(position = 1)]
+    cfg: String<10>,
+    #[at_arg(position = 2)]
+    out_port: String<15>,
 }
-
 impl QGpsCfgOutPortSet {
     pub fn new(outport: Outport) -> Self {
-        match outport {
-            Outport::None => Self {
-                out_port: String::try_from("none").unwrap(),
-            },
-            Outport::UsbNmea => Self {
-                out_port: String::try_from("usbnmea").unwrap(),
-            },
-            Outport::UartDebug => Self {
-                out_port: String::try_from("uartdebug").unwrap(),
+        Self {
+            cfg: String::try_from("outport").unwrap(),
+            out_port: match outport {
+                Outport::None => String::try_from("none").unwrap(),
+                Outport::UsbNmea => String::try_from("usbnmea").unwrap(),
+                Outport::UartDebug => String::try_from("uartdebug").unwrap(),
             },
         }
     }
@@ -32,90 +31,94 @@ impl QGpsCfgOutPortSet {
 
 /// 2.3.1.2 AT+QGPSCFG="nmeasrc" 启用/禁用通过 AT+QGPSGNMEA 获取 NMEA 语句
 #[derive(Clone, Debug, AtatCmd)]
-#[at_cmd("+QGPSCFG=\"nmeasrc\",", OkResp, timeout_ms = 600, value_sep = false)]
+#[at_cmd("+QGPSCFG", OkResp, timeout_ms = 600)]
 pub struct QGpsCfgNmeasrcSet {
+    #[at_arg(position = 1)]
+    cfg: String<10>,
+    #[at_arg(position = 2)]
     on_off: u8,
 }
 impl QGpsCfgNmeasrcSet {
     pub fn new(on_off: OnOff) -> Self {
-        match on_off {
-            OnOff::On => Self { on_off: 1 },
-            OnOff::Off => Self { on_off: 0 },
+        Self {
+            cfg: String::try_from("nmeasrc").unwrap(),
+            on_off: on_off as u8,
         }
     }
 }
 
 /// 2.3.1.3. AT+QGPSCFG="gpsnmeatype" 配置 NMEA 语句的输出类型
 #[derive(Clone, Debug, AtatCmd)]
-#[at_cmd(
-    "+QGPSCFG=\"gpsnmeatype\",",
-    OkResp,
-    timeout_ms = 600,
-    value_sep = false
-)]
+#[at_cmd("+QGPSCFG", OkResp, timeout_ms = 600)]
 pub struct QGpsCfgGpsNmeaTypeSet {
+    #[at_arg(position = 1)]
+    cfg: String<15>,
+    #[at_arg(position = 2)]
     gps_nmea_type: u8,
 }
 
 impl QGpsCfgGpsNmeaTypeSet {
     pub fn new(nmea_type: NmeaConfig) -> Self {
-        match nmea_type {
-            NmeaConfig::Defalut => Self { gps_nmea_type: 31 },
-            NmeaConfig::AllEnable => Self { gps_nmea_type: 63 },
-            NmeaConfig::AllDisable => Self { gps_nmea_type: 0 },
-            NmeaConfig::Config {
-                gga,
-                rmc,
-                gsv,
-                gsa,
-                vtg,
-                gll,
-            } => {
-                let mut cfg = 0;
-                if gga {
-                    cfg = cfg | 1;
+        Self {
+            cfg: String::try_from("gpsnmeatype").unwrap(),
+            gps_nmea_type: match nmea_type {
+                NmeaConfig::Defalut => 31,
+                NmeaConfig::AllEnable => 63,
+                NmeaConfig::AllDisable => 0,
+                NmeaConfig::Config {
+                    gga,
+                    rmc,
+                    gsv,
+                    gsa,
+                    vtg,
+                    gll,
+                } => {
+                    let mut cfg = 0;
+                    if gga {
+                        cfg = cfg | 1;
+                    }
+                    if rmc {
+                        cfg = cfg | 2;
+                    }
+                    if gsv {
+                        cfg = cfg | 4;
+                    }
+                    if gsa {
+                        cfg = cfg | 8;
+                    }
+                    if vtg {
+                        cfg = cfg | 16;
+                    }
+                    if gll {
+                        cfg = cfg | 32;
+                    }
+                    cfg
                 }
-                if rmc {
-                    cfg = cfg | 2;
-                }
-                if gsv {
-                    cfg = cfg | 4;
-                }
-                if gsa {
-                    cfg = cfg | 8;
-                }
-                if vtg {
-                    cfg = cfg | 16;
-                }
-                if gll {
-                    cfg = cfg | 32;
-                }
-                Self { gps_nmea_type: cfg }
-            }
+            },
         }
     }
 }
 
 /// 2.3.1.4. AT+QGPSCFG="gnssconfig" 配置支持的 GNSS 卫星导航系统
 #[derive(Clone, Debug, AtatCmd)]
-#[at_cmd(
-    "+QGPSCFG=\"gnssconfig\",",
-    OkResp,
-    timeout_ms = 600,
-    value_sep = false
-)]
+#[at_cmd("+QGPSCFG", OkResp, timeout_ms = 600)]
 pub struct QGpsCfgGnssConfigSet {
+    #[at_arg(position = 1)]
+    cfg: String<15>,
+    #[at_arg(position = 2)]
     gnss_confg: u8,
 }
 
 impl QGpsCfgGnssConfigSet {
     pub fn new(cfg: GnssConfig) -> Self {
         Self {
+            cfg: String::try_from("gnssconfig").unwrap(),
             gnss_confg: cfg as u8,
         }
     }
     pub fn default() -> Self {
         Self {
+            cfg: String::try_from("gnssconfig").unwrap(),
             gnss_confg: GnssConfig::GpsBeiDouGalileo as u8,
         }
     }
@@ -123,30 +126,36 @@ impl QGpsCfgGnssConfigSet {
 
 /// 2.3.1.5. AT+QGPSCFG="autogps" 启用/禁用 GNSS 自启动
 #[derive(Clone, Debug, AtatCmd)]
-#[at_cmd("+QGPSCFG=\"autogps\",", OkResp, timeout_ms = 600, value_sep = false)]
+#[at_cmd("+QGPSCFG", OkResp, timeout_ms = 600)]
 pub struct QGpsCfgAutoGpsSet {
+    #[at_arg(position = 1)]
+    cfg: String<10>,
+    #[at_arg(position = 2)]
     on_off: u8,
 }
 impl QGpsCfgAutoGpsSet {
-    pub fn new(on: OnOff) -> Self {
-        match on {
-            OnOff::On => Self { on_off: 1 },
-            OnOff::Off => Self { on_off: 0 },
+    pub fn new(on_off: OnOff) -> Self {
+        Self {
+            cfg: String::try_from("autogps").unwrap(),
+            on_off: on_off as u8,
         }
     }
 }
 
 /// 2.3.1.6. AT+QGPSCFG="apflash" 启用/禁用 AP-Flash 快速热启动功能
 #[derive(Clone, Debug, AtatCmd)]
-#[at_cmd("+QGPSCFG=\"apflash\",", OkResp, timeout_ms = 600, value_sep = false)]
+#[at_cmd("+QGPSCFG", OkResp, timeout_ms = 600)]
 pub struct QGpsCfgApFlashSet {
+    #[at_arg(position = 1)]
+    cfg: String<10>,
+    #[at_arg(position = 2)]
     on_off: u8,
 }
 impl QGpsCfgApFlashSet {
-    pub fn new(on: OnOff) -> Self {
-        match on {
-            OnOff::On => Self { on_off: 1 },
-            OnOff::Off => Self { on_off: 0 },
+    pub fn new(on_off: OnOff) -> Self {
+        Self {
+            cfg: String::try_from("apflash").unwrap(),
+            on_off: on_off as u8
         }
     }
 }
@@ -169,7 +178,6 @@ impl QGpsDelSet {
 #[derive(Clone, Debug, AtatCmd)]
 #[at_cmd("+QGPS", OkResp, timeout_ms = 600)]
 pub struct QGpsSet {
-    #[at_arg(position = 1)]
     on_off: u8,
 }
 impl QGpsSet {
@@ -199,9 +207,9 @@ impl QGpsLocGet {
 
 /// 2.3.6. AT+QGPSGNMEA 获取指定的 NMEA 语句
 #[derive(Clone, Debug, AtatCmd)]
-#[at_cmd("+GPSGNMEA", NoResp)]
+#[at_cmd("+QGPSGNMEA", NmeaResp, timeout_ms = 5000, parse = NmeaResp::parse)]
 pub struct QGpsNmeaGet {
-    nmea_type: String<6>,
+    nmea_type: String<3>,
 }
 impl QGpsNmeaGet {
     pub fn new(nmea_type: NmeaType) -> Self {
@@ -232,14 +240,12 @@ impl QGpsNmeaGet {
 #[derive(Clone, Debug, AtatCmd)]
 #[at_cmd("+QAGPS", OkResp, timeout_ms = 600)]
 pub struct QAgpsSet {
-    #[at_arg(position = 1)]
     on_off: u8,
 }
 impl QAgpsSet {
     pub fn new(on_off: OnOff) -> Self {
-        match on_off {
-            OnOff::On => Self { on_off: 1 },
-            OnOff::Off => Self { on_off: 0 },
+        Self {
+            on_off: on_off as u8
         }
     }
 }

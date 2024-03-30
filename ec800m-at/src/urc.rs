@@ -96,6 +96,7 @@ impl AtatUrc for URCMessages {
 
     fn parse(resp: &[u8]) -> Option<Self::Response> {
         match resp {
+            
             b"SYSTEM START" => Some(SystemStart),
             b if b.starts_with(b"SOFT VERSION:") => URCMessages::parse_software_version(resp).ok(),
             b if b.starts_with(b"NEXT TX after(s):") => URCMessages::parse_next_tx(resp).ok(),

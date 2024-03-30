@@ -1,3 +1,5 @@
+use log::{debug, info};
+
 pub mod cmds;
 pub mod resps;
 pub mod types;
@@ -11,7 +13,8 @@ pub mod asynch {
     use embedded_io_async::Write;
     use log::{debug, info};
     use crate::general::types::OnOff;
-    use super::types::{DeleteType, GnssConfig, NmeaConfig, NmeaType, Outport};
+    use super::resps::NmeaResp;
+    use super::types::{DeleteType, GnssConfig, NmeaConfig, NmeaType, NmeaVec, Outport};
     use super::cmds::{QAgpsSet, QGpsCfgApFlashSet, QGpsCfgAutoGpsSet, QGpsCfgGnssConfigSet, QGpsCfgGpsNmeaTypeSet, QGpsCfgNmeasrcSet, QGpsCfgOutPortSet, QGpsDelSet, QGpsEndSet, QGpsLocGet, QGpsNmeaGet};
 
     impl<'a, W: Write, const INGRESS_BUF_SIZE: usize> Client<'a, W, INGRESS_BUF_SIZE> {
@@ -70,10 +73,10 @@ pub mod asynch {
             let _resp = self.client.send(&cmd).await?;
             Ok(true)
         }
-        pub async fn gps_get_nmea(&mut self, nmea_type: NmeaType) -> Result<bool, Error> {
+        pub async fn gps_get_nmea(&mut self, nmea_type: NmeaType) -> Result<NmeaVec, Error> {
             let cmd = QGpsNmeaGet::new(nmea_type);
-            let _resp = self.client.send(&cmd).await?;
-            Ok(true)
+            let resp = self.client.send(&cmd).await?;
+            Ok(resp.nmeas)
         }
     }
 }

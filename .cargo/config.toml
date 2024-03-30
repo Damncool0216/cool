@@ -2,7 +2,7 @@
 runner = "espflash flash --monitor"
 
 [env]
-ESP_LOGLEVEL="Debug"
+ESP_LOGLEVEL="Info"
 [build]
 rustflags = [
   "-C", "link-arg=-Tlinkall.x",

@@ -14,14 +14,7 @@ pub mod asynch {
         pub async fn new(
             client: Client<'a, W, INGRESS_BUF_SIZE>,
         ) -> Result<Ec800mClient<'a, W, INGRESS_BUF_SIZE>, Error> {
-            let mut s = Self { client };
-            
-            if s.at_echo_set(false).await.is_err() {
-                #[cfg(feature = "debug")]
-                error!("set echo to false falid");
-            }
-            
-            Ok(s)
+            Ok(Self { client })
         }
     }
 }

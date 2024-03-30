@@ -1,6 +1,6 @@
-use atat::{atat_derive::AtatResp, derive};
+use atat::{atat_derive::AtatResp, derive, serde_at::serde::Deserialize};
 
-use heapless::String;
+use heapless::{String, Vec};
 
 #[derive(Debug, Clone, AtatResp, PartialEq)]
 pub struct NoResp;
@@ -8,7 +8,7 @@ pub struct NoResp;
 /// OK resp
 #[derive(Debug, Clone, AtatResp, PartialEq)]
 pub struct OkResp {
-    pub ok: String<4>,
+    pub ok: String<2>,
 }
 
 impl OkResp {
@@ -31,6 +31,3 @@ impl OnOffResp {
         self.on_off.as_str().eq("OFF")
     }
 }
-
-
-

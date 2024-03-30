@@ -2,6 +2,8 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
+use core::cell::RefCell;
+
 use esp_backtrace as _;
 
 use embassy_executor::Spawner;
@@ -19,16 +21,21 @@ use hal::{
 };
 
 use log::{error, info};
+
+use nmea::{Nmea, SentenceType};
 use static_cell::StaticCell;
 
-use atat::{asynch::Client, Config, Ingress, UrcChannel};
+use atat::{asynch::Client, helpers::LossyStr, Config, Ingress, UrcChannel};
 use atat::{AtatIngress, ResponseSlot};
 
-use ec800m_at::gnss::types::{DeleteType, GnssConfig, NmeaConfig, NmeaType, Outport};
-use ec800m_at::general::types::OnOff;
 use ec800m_at::client::asynch::Ec800mClient;
 use ec800m_at::digester::Ec800mDigester;
+use ec800m_at::general::types::OnOff;
 use ec800m_at::urc::URCMessages;
+use ec800m_at::{
+    client,
+    gnss::types::{DeleteType, GnssConfig, NmeaConfig, NmeaType, Outport},
+};
 
 // Chunk size in bytes when receiving data. Value should be matched to buffer
 // size of receive() calls.
@@ -62,9 +69,7 @@ async fn main(spawner: Spawner) {
     let clocks = ClockControl::max(system.clock_control).freeze();
     let timer_group0 = TimerGroup::new(peripherals.TIMG0, &clocks);
     embassy::init(&clocks, timer_group0);
-    let _delay = embassy_time::Delay;
 
-    /* 串口初始化 */
     let config = uart::config::Config {
         baudrate: 115200,
         data_bits: uart::config::DataBits::DataBits8,
@@ -81,14 +86,10 @@ async fn main(spawner: Spawner) {
     let mut serial1 = Uart::new_with_config(peripherals.UART1, config, Some(pins), &clocks);
 
     serial1.set_rx_fifo_full_threshold(6).unwrap();
+    serial1.set_at_cmd(AtCmdConfig::new(None, None, None, b'\r', None));
     serial1.listen_at_cmd();
     serial1.listen_rx_fifo_full();
     let (writer, reader) = serial1.split();
-
-    let config = atat::Config::default()
-        .flush_timeout(Duration::from_millis(2000))
-        .cmd_cooldown(Duration::from_millis(200))
-        .tx_timeout(Duration::from_millis(2000));
 
     static INGRESS_BUF: StaticCell<[u8; INGRESS_BUF_SIZE]> = StaticCell::new();
     static RES_SLOT: ResponseSlot<INGRESS_BUF_SIZE> = ResponseSlot::new();
@@ -102,16 +103,13 @@ async fn main(spawner: Spawner) {
     );
 
     static BUF: StaticCell<[u8; 1024]> = StaticCell::new();
-    let client = Client::new(
-        writer,
-        &RES_SLOT,
-        BUF.init([0; 1024]),
-        Config::default(),
-    );
+    let client = Client::new(writer, &RES_SLOT, BUF.init([0; 1024]), Config::default());
     let ec800m_at_client: AtClient = Ec800mClient::new(client).await.unwrap();
+    let nmea_parser = nmea::Nmea::create_for_navigation(&[SentenceType::RMC]).unwrap();
+    //let mut parser = NmeaParser::new();
     spawner.spawn(ingress_task(ingress, reader)).ok();
     spawner.spawn(at_client_task(ec800m_at_client)).ok();
-    spawner.spawn(gnss_task()).ok();
+    //spawner.spawn(gnss_task(nmea_parser)).ok();
     spawner.spawn(i2c_master_task()).ok();
 }
 
@@ -120,66 +118,86 @@ async fn ingress_task(mut ingress: AtIngress<'static>, mut reader: AtReader<'sta
     ingress.read_from(&mut reader).await
 }
 
-#[embassy_executor::task]
-async fn at_client_task(mut client: AtClient<'static>) {
-    let mut state = 0;
+#[embassy_executor::task(pool_size = 4)]
+async fn at_client_task(mut client: AtClient<'static>) -> ! {
+    let mut state = 1;
     loop {
-        state = state + 1;
+        info!("state:{}", state);
         match state {
             1 => {
                 if let Ok(_) = client.verify_com_is_working().await {
                     info!("com ok");
-                } else {
-                    info!("com fail");
+                    state = state + 1;
                 }
             }
             2 => {
-                client.gpscfg_set_outport(Outport::None).await.ok();
+                if let Ok(_) = client.at_echo_set(OnOff::Off).await {
+                    info!("ATE0 ok");
+                    state = state + 1;
+                }
+                client.at_config_save().await.ok();
+            }
+            3 => {
+                state = state + 1;
+            }
+            4 => {
                 client.gpscfg_set_outport(Outport::UartDebug).await.ok();
-                client.gpscfg_set_outport(Outport::UsbNmea).await.ok();
-                
                 client.gpscfg_set_nmea_src(OnOff::On).await.ok();
-                client.gpscfg_set_nmea_src(OnOff::Off).await.ok();
-
-                client.gpscfg_set_nmea_type(NmeaConfig::AllDisable).await.ok();
-                client.gpscfg_set_nmea_type(NmeaConfig::AllEnable).await.ok();
-                client.gpscfg_set_nmea_type(NmeaConfig::Defalut).await.ok();
-                client.gpscfg_set_nmea_type(NmeaConfig::Config { gga: true, rmc: true, gsv: true, gsa: true, vtg: false, gll: false }).await.ok();
-
-                client.gpscfg_set_gnss_config(GnssConfig::BeiDou).await.ok();
-                client.gpscfg_set_gnss_config(GnssConfig::Gps).await.ok();
-                client.gpscfg_set_gnss_config(GnssConfig::GpsBeiDou).await.ok();
-                client.gpscfg_set_gnss_config(GnssConfig::GpsBeiDouGalileo).await.ok();
-                client.gpscfg_set_gnss_config(GnssConfig::GpsGalileo).await.ok();
-                client.gpscfg_set_gnss_config(GnssConfig::GpsGlonass).await.ok();
-                client.gpscfg_set_gnss_config(GnssConfig::GpsGlonassGalileo).await.ok();
-
                 client.gpscfg_set_auto_gps(OnOff::On).await.ok();
-                client.gpscfg_set_auto_gps(OnOff::Off).await.ok();
-
                 client.gpscfg_set_ap_flash(OnOff::On).await.ok();
-                client.gpscfg_set_ap_flash(OnOff::Off).await.ok();
+                if let Ok(_) = client.gps_set_sw(OnOff::On).await {
+                    info!("gps open ok");
+                    client.gps_set_del(DeleteType::NotDel).await.ok();
+                    state += 1;
+                } else {
+                    client.gps_set_sw(OnOff::Off).await.ok();
+                }
+            }
+            5 => {
+                client.gpscfg_set_nmea_src(OnOff::On).await.ok();
 
-                client.gps_set_del(DeleteType::AllDel).await.ok();
-                client.gps_set_del(DeleteType::NotDel).await.ok();
-                client.gps_set_del(DeleteType::PartDel).await.ok();
-
-                client.gps_set_sw(OnOff::On).await.ok();
-                client.gps_set_sw(OnOff::Off).await.ok();
-
-                client.gps_set_end().await.ok();
-
-                client.gps_get_location().await.ok();
-
-                client.gps_get_nmea(NmeaType::GGA).await.ok();
-                client.gps_get_nmea(NmeaType::GLL).await.ok();
-                client.gps_get_nmea(NmeaType::GSA).await.ok();
-                client.gps_get_nmea(NmeaType::GSV).await.ok();
-                client.gps_get_nmea(NmeaType::RMC).await.ok();
-                client.gps_get_nmea(NmeaType::VTG).await.ok();
-
-                client.gps_set_agps(OnOff::On).await.ok();
-                client.gps_set_agps(OnOff::Off).await.ok();
+                if let Ok(s) = client.gps_get_nmea(NmeaType::GSV).await {
+                    let mut nmea_parser = nmea::Nmea::create_for_navigation(&[
+                        SentenceType::RMC,
+                        SentenceType::GGA,
+                        SentenceType::GSV,
+                        SentenceType::GNS,
+                    ])
+                    .unwrap();
+                    for nmea_sentence in s {
+                        info!("parsing nmea {}", nmea_sentence);
+                        nmea_parser.parse(nmea_sentence.as_str()).ok();
+                        info!("{:?} {:?}", nmea_parser.longitude, nmea_parser.latitude);
+                    }
+                }
+                if let Ok(s) = client.gps_get_nmea(NmeaType::GGA).await {
+                    let mut nmea_parser = nmea::Nmea::create_for_navigation(&[
+                        SentenceType::RMC,
+                        SentenceType::GGA,
+                        SentenceType::GSV,
+                        SentenceType::GNS,
+                    ])
+                    .unwrap();
+                    for nmea_sentence in s {
+                        info!("parsing nmea {}", nmea_sentence);
+                        nmea_parser.parse(nmea_sentence.as_str()).ok();
+                        info!("{:?} {:?}", nmea_parser.longitude, nmea_parser.latitude);
+                    }
+                }
+                if let Ok(s) = client.gps_get_nmea(NmeaType::RMC).await {
+                    let mut nmea_parser = nmea::Nmea::create_for_navigation(&[
+                        SentenceType::RMC,
+                        SentenceType::GGA,
+                        SentenceType::GSV,
+                        SentenceType::GNS,
+                    ])
+                    .unwrap();
+                    for nmea_sentence in s {
+                        info!("parsing nmea {}", nmea_sentence);
+                        nmea_parser.parse(nmea_sentence.as_str()).ok();
+                        info!("{:?} {:?}", nmea_parser.longitude, nmea_parser.latitude);
+                    }
+                }
             }
             _ => {
                 state = 0;

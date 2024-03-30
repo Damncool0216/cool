@@ -6,7 +6,7 @@ use atat::atat_derive::AtatCmd;
 use heapless::String;
 
 use super::types::{
-    MqttCleanSession, MqttClientIdx, MqttEditMode, MqttPdPCid, MqttQos, MqttRecvLen, MqttRecvMode, MqttSendMode, MqttSslCtxIdx, MqttSslMode, MqttTimeOutNotice, MqttVersion, MqttWillFlag, MqttWillRetain
+    MqttCleanSession, MqttClientIdx, MqttEditMode, MqttPdPCid, MqttQos, MqttRecvLen, MqttRecvMode, MqttSendMode, MqttSslCtxIdx, MqttSslMode, MqttTimeOutNotice, MqttVersion, MqttViewMode, MqttWillFlag, MqttWillRetain
 };
 
 /// 3.3.1. AT+QMTCFG 配置 MQTT 可选参数
@@ -499,3 +499,179 @@ impl QMtCfgEditTimeoutSet {
         }
     }
 }
+
+
+/// 3.3.2. AT+QMTOPEN 打开 MQTT 客户端网络
+#[derive(Clone, Debug, AtatCmd)]
+#[at_cmd("+QMTOPEN", OkResp, timeout_ms = 1000)]
+pub struct QMtOpenSet<'a> {
+    #[at_arg(position = 1)]
+    client_idx: u8,
+    #[at_arg(position = 2, len = 200)]
+    host_name: &'a str,
+    #[at_arg(position = 3)]
+    port: u16,
+}
+
+impl<'a> QMtOpenSet<'a> {
+    pub fn new(client_idx: MqttClientIdx, host_name: &'a str, port: u16) -> Self {
+        Self {
+            client_idx: client_idx as u8,
+            host_name,
+            port
+        }
+    }
+}
+
+/// 3.3.3. AT+QMTCLOSE 关闭 MQTT 客户端网络
+#[derive(Clone, Debug, AtatCmd)]
+#[at_cmd("+QMTCLOSE", OkResp, timeout_ms = 600)]
+pub struct QMtCloseSet {
+    #[at_arg(position = 1)]
+    client_idx: u8,
+}
+
+impl QMtCloseSet {
+    pub fn new(client_idx: MqttClientIdx) -> Self {
+        Self {
+            client_idx: client_idx as u8,
+        }
+    }
+}
+
+/// 3.3.4. AT+QMTCONN 连接客户端到 MQTT 服务器
+#[derive(Clone, Debug, AtatCmd)]
+#[at_cmd("+QMTCONN", OkResp, timeout_ms = 5000)]
+pub struct QMtConnSet<'a> {
+    #[at_arg(position = 1)]
+    client_idx: u8,
+    #[at_arg(position = 2, len = 50)]
+    clientid: &'a str,
+    #[at_arg(position = 3, len = 50)]
+    username: Option<&'a str>,
+    #[at_arg(position = 4, len = 50)]
+    password: Option<&'a str>,
+}
+impl<'a> QMtConnSet<'a> {
+    pub fn new(client_idx: MqttClientIdx, clientid: &'a str, username: Option<&'a str>, password: Option<&'a str>) -> Self {
+        Self {
+            client_idx: client_idx as u8,
+            clientid,
+            username,
+            password
+        }
+    }
+}
+
+/// 3.3.5. AT+QMTDISC 客户端断开与 MQTT 服务器的连接
+#[derive(Clone, Debug, AtatCmd)]
+#[at_cmd("+QMTDISC", OkResp, timeout_ms = 30000)]
+pub struct QMtDiscSet {
+    #[at_arg(position = 1)]
+    client_idx: u8,
+}
+impl QMtDiscSet {
+    pub fn new(client_idx: MqttClientIdx) -> Self {
+        Self {
+            client_idx: client_idx as u8,
+        }
+    }
+}
+
+///3.3.6. AT+QMTSUB 订阅主题
+#[derive(Clone, Debug, AtatCmd)]
+#[at_cmd("+QMTSUB", OkResp, timeout_ms = 15000)]
+pub struct QMtSubSet<'a> {
+    #[at_arg(position = 1)]
+    client_idx: u8,
+    #[at_arg(position = 2)]
+    msgid: u16,
+    #[at_arg(position = 3, len = 128)]
+    topic: &'a str,
+    #[at_arg(position = 4)]
+    qos: u8,
+}
+impl<'a> QMtSubSet<'a> {
+    pub fn new(client_idx: MqttClientIdx, msgid: u16, topic: &'a str, qos: MqttQos) -> Self {
+        Self {
+            client_idx: client_idx as u8,
+            msgid,
+            topic,
+            qos: qos as u8
+        }
+    }
+}
+
+/// 3.3.7. AT+QMTUNS 退订主题
+#[derive(Clone, Debug, AtatCmd)]
+#[at_cmd("+QMTUNS", OkResp, timeout_ms = 15000)]
+pub struct QMtUnsSet<'a> {
+    #[at_arg(position = 1)]
+    client_idx: u8,
+    #[at_arg(position = 2)]
+    msgid: u16,
+    #[at_arg(position = 3, len = 128)]
+    topic: &'a str,
+}
+impl<'a> QMtUnsSet<'a> {
+    pub fn new(client_idx: MqttClientIdx, msgid: u16, topic: &'a str) -> Self {
+        Self {
+            client_idx: client_idx as u8,
+            msgid,
+            topic,
+        }
+    }
+}
+
+/// 3.3.8. AT+QMTPUBEX 发布消息
+#[derive(Clone, Debug, AtatCmd)]
+#[at_cmd("+QMTPUBEX", OkResp, timeout_ms = 15000)]
+pub struct QMtPubexSet<'a> {
+    #[at_arg(position = 1)]
+    client_idx: u8,
+    #[at_arg(position = 2)]
+    msgid: u16,
+    #[at_arg(position = 3)]
+    qos: u8,
+    #[at_arg(position = 4)]
+    retain: u8,
+    #[at_arg(position = 5, len = 128)]
+    topic: &'a str,
+    #[at_arg(position = 6)]
+    length: u16
+}
+impl<'a> QMtPubexSet<'a> {
+    pub fn new(client_idx: MqttClientIdx, msgid: u16, qos: MqttQos, retain: u8, topic: &'a str, length: u16) -> Self {
+        Self {
+            client_idx: client_idx as u8,
+            msgid,
+            qos: qos as u8,
+            retain,
+            topic,
+            length
+        }
+    }
+}
+
+/// 3.3.9. AT+QMTRECV 从缓存中读取消息
+#[derive(Clone, Debug, AtatCmd)]
+#[at_cmd("+QMTRECV", OkResp, timeout_ms = 15000)]
+pub struct QMtRecvSet {
+    #[at_arg(position = 1)]
+    client_idx: u8,
+    #[at_arg(position = 2)]
+    recv_id: u8,
+}
+impl QMtRecvSet {
+    pub fn new(client_idx: MqttClientIdx, recv_id: u8) -> Self {
+        Self {
+            client_idx: client_idx as u8,
+            recv_id,
+        }
+    }
+}
+
+
+
+
+

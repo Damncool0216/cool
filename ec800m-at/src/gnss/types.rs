@@ -1,3 +1,5 @@
+use heapless::{String, Vec};
+
 pub enum NmeaConfig {
     Defalut,
     AllEnable,
@@ -46,3 +48,6 @@ pub enum NmeaType {
     VTG,
     GLL,
 }
+
+pub type NmeaStr = String<120>;
+pub type NmeaVec = Vec<NmeaStr, 20>;
