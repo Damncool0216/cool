@@ -2,17 +2,16 @@
 use atat::helpers::LossyStr;
 use atat::{
     digest::{parser, ParseError},
-    InternalError, Response,
+    InternalError,
 };
 use atat::{
     nom,
-    nom::{branch, bytes, character, combinator, sequence},
+    nom::{branch, bytes, combinator, sequence},
     DigestResult, Digester, Parser,
 };
 
 use crate::urc::URCMessages;
-#[cfg(feature = "debug")]
-use heapless::String;
+
 #[cfg(feature = "debug")]
 use log::{debug, info};
 
@@ -77,7 +76,7 @@ impl Digester for Ec800mDigester {
             Ok((_, (result, len))) => {
                 if len > 0 {
                     #[cfg(feature = "debug")]
-                    debug!("general success resp match: {:?}, {}", result, len);
+                    debug!("general success resp match: {:?},{}", result, len);
                     return (result, len)
                 }
             }

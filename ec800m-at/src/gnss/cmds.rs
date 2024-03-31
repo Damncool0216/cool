@@ -2,7 +2,7 @@ use crate::general::{
     resps::{NoResp, OkResp},
     types::OnOff,
 };
-use atat::{atat_derive::AtatCmd, Error, InternalError};
+use atat::atat_derive::AtatCmd;
 use heapless::String;
 
 use super::{resps::NmeaResp, types::{DeleteType, GnssConfig, NmeaConfig, NmeaType, Outport}};

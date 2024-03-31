@@ -1,14 +1,14 @@
-use atat::{atat_derive::AtatResp, derive, serde_at::serde::Deserialize};
+use atat::atat_derive::AtatResp;
 
-use heapless::{String, Vec};
+use heapless::String;
 
-#[derive(Debug, Clone, AtatResp, PartialEq)]
+#[derive(Debug, Clone, AtatResp)]
 pub struct NoResp;
 
 /// OK resp
-#[derive(Debug, Clone, AtatResp, PartialEq)]
+#[derive(Debug, Clone, AtatResp)]
 pub struct OkResp {
-    pub ok: String<2>,
+    pub ok: String<4>,
 }
 
 impl OkResp {

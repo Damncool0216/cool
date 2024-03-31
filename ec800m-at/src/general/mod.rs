@@ -16,26 +16,33 @@ pub mod asynch {
     impl<'a, W: Write, const INGRESS_BUF_SIZE: usize> Client<'a, W, INGRESS_BUF_SIZE> {
         pub async fn verify_com_is_working(&mut self) -> Result<bool, Error> {
             let cmd = VerifyAT;
-            let resp = self.client.send(&cmd).await?;
-            #[cfg(feature = "debug")]
-            info!("{:?}", resp);
-            Ok(resp.is_ok())
+            let resp = self.client.send(&cmd).await;
+            match resp {
+                Ok(_) => {
+                    Ok(resp.is_ok())
+                }
+                Err(e) => {
+                    #[cfg(feature = "debug")]
+                    debug!("{:?}", e);
+                    Err(e)
+                }
+            }
         }
 
         pub async fn at_echo_set(&mut self, on_off: OnOff) -> Result<bool, Error> {
             let command = AteSet::new(on_off);
+            let resp = self.client.send(&command).await?;
             #[cfg(feature = "debug")]
-            info!("{:?}", command);
-            let response = self.client.send(&command).await?;
-            Ok(response.is_ok())
+            info!("{:?} resp", resp);
+            Ok(resp.is_ok())
         }
 
         pub async fn at_config_save(&mut self) -> Result<bool, Error> {
             let command = AtW;
+            let resp = self.client.send(&command).await?;
             #[cfg(feature = "debug")]
-            info!("{:?}", command);
-            let response = self.client.send(&command).await?;
-            Ok(response.is_ok())
+            info!("{:?} resp", resp);
+            Ok(resp.is_ok())
         }
     }
 }

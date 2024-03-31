@@ -1,12 +1,11 @@
-use crate::general::{
-    resps::{NoResp, OkResp},
-    types::OnOff,
-};
+use crate::general::resps::OkResp;
 use atat::atat_derive::AtatCmd;
 use heapless::String;
 
 use super::types::{
-    MqttCleanSession, MqttClientIdx, MqttEditMode, MqttPdPCid, MqttQos, MqttRecvLen, MqttRecvMode, MqttSendMode, MqttSslCtxIdx, MqttSslMode, MqttTimeOutNotice, MqttVersion, MqttViewMode, MqttWillFlag, MqttWillRetain
+    MqttCleanSession, MqttClientIdx, MqttEditMode, MqttPdPCid, MqttQos, MqttRecvLen, MqttRecvMode,
+    MqttSendMode, MqttSslCtxIdx, MqttSslMode, MqttTimeOutNotice, MqttVersion, MqttViewMode,
+    MqttWillFlag, MqttWillRetain,
 };
 
 /// 3.3.1. AT+QMTCFG 配置 MQTT 可选参数
@@ -363,7 +362,7 @@ impl QMtCfgSendModeSet {
         Self {
             cfg: String::try_from("send/mode").unwrap(),
             client_idx: client_idx as u8,
-            send_mode: send_mode as u8
+            send_mode: send_mode as u8,
         }
     }
 }
@@ -389,7 +388,7 @@ impl<'a> QMtCfgHwauthSet<'a> {
             cfg: String::try_from("hwauth").unwrap(),
             client_idx: client_idx as u8,
             product_id,
-            device_secret
+            device_secret,
         }
     }
 }
@@ -412,13 +411,18 @@ pub struct QMtCfgHwprodidSet<'a> {
 }
 
 impl<'a> QMtCfgHwprodidSet<'a> {
-    pub fn new(client_idx: MqttClientIdx, product_id: &'a str, device_secret: &'a str, nodeid: &'a str) -> Self {
+    pub fn new(
+        client_idx: MqttClientIdx,
+        product_id: &'a str,
+        device_secret: &'a str,
+        nodeid: &'a str,
+    ) -> Self {
         Self {
             cfg: String::try_from("hwprodid").unwrap(),
             client_idx: client_idx as u8,
             product_id,
             device_secret,
-            nodeid
+            nodeid,
         }
     }
 }
@@ -439,12 +443,16 @@ pub struct QMtCfgDataFormatSet {
 }
 
 impl QMtCfgDataFormatSet {
-    pub fn new(client_idx: MqttClientIdx, send_mode: MqttSendMode, recv_mode: MqttRecvMode) -> Self {
+    pub fn new(
+        client_idx: MqttClientIdx,
+        send_mode: MqttSendMode,
+        recv_mode: MqttRecvMode,
+    ) -> Self {
         Self {
             cfg: String::try_from("dataformat").unwrap(),
             client_idx: client_idx as u8,
             send_mode: send_mode as u8,
-            recv_mode: recv_mode as u8
+            recv_mode: recv_mode as u8,
         }
     }
 }
@@ -467,8 +475,7 @@ impl QMtCfgViewModeSet {
         Self {
             cfg: String::try_from("view/mode").unwrap(),
             client_idx: client_idx as u8,
-            view_mode: view_mode as u8
-
+            view_mode: view_mode as u8,
         }
     }
 }
@@ -490,16 +497,19 @@ pub struct QMtCfgEditTimeoutSet {
 
 impl QMtCfgEditTimeoutSet {
     pub fn new(client_idx: MqttClientIdx, edit_mode: MqttEditMode, edit_time: u8) -> Self {
-        let edit_time = if edit_time < 1 || edit_time > 120 {30} else {edit_time};
+        let edit_time = if edit_time < 1 || edit_time > 120 {
+            30
+        } else {
+            edit_time
+        };
         Self {
             cfg: String::try_from("edit/timeout").unwrap(),
             client_idx: client_idx as u8,
             edit_mode: edit_mode as u8,
-            edit_time
+            edit_time,
         }
     }
 }
-
 
 /// 3.3.2. AT+QMTOPEN 打开 MQTT 客户端网络
 #[derive(Clone, Debug, AtatCmd)]
@@ -518,7 +528,7 @@ impl<'a> QMtOpenSet<'a> {
         Self {
             client_idx: client_idx as u8,
             host_name,
-            port
+            port,
         }
     }
 }
@@ -553,12 +563,17 @@ pub struct QMtConnSet<'a> {
     password: Option<&'a str>,
 }
 impl<'a> QMtConnSet<'a> {
-    pub fn new(client_idx: MqttClientIdx, clientid: &'a str, username: Option<&'a str>, password: Option<&'a str>) -> Self {
+    pub fn new(
+        client_idx: MqttClientIdx,
+        clientid: &'a str,
+        username: Option<&'a str>,
+        password: Option<&'a str>,
+    ) -> Self {
         Self {
             client_idx: client_idx as u8,
             clientid,
             username,
-            password
+            password,
         }
     }
 }
@@ -597,7 +612,7 @@ impl<'a> QMtSubSet<'a> {
             client_idx: client_idx as u8,
             msgid,
             topic,
-            qos: qos as u8
+            qos: qos as u8,
         }
     }
 }
@@ -638,17 +653,24 @@ pub struct QMtPubexSet<'a> {
     #[at_arg(position = 5, len = 128)]
     topic: &'a str,
     #[at_arg(position = 6)]
-    length: u16
+    length: u16,
 }
 impl<'a> QMtPubexSet<'a> {
-    pub fn new(client_idx: MqttClientIdx, msgid: u16, qos: MqttQos, retain: u8, topic: &'a str, length: u16) -> Self {
+    pub fn new(
+        client_idx: MqttClientIdx,
+        msgid: u16,
+        qos: MqttQos,
+        retain: u8,
+        topic: &'a str,
+        length: u16,
+    ) -> Self {
         Self {
             client_idx: client_idx as u8,
             msgid,
             qos: qos as u8,
             retain,
             topic,
-            length
+            length,
         }
     }
 }
@@ -670,8 +692,3 @@ impl QMtRecvSet {
         }
     }
 }
-
-
-
-
-

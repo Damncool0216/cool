@@ -1,10 +1,6 @@
 use super::types::{NmeaStr, NmeaVec};
-use atat::{
-    atat_derive::AtatResp, helpers::LossyStr, serde_at::serde::Deserialize, AtatResp, Error,
-    InternalError, Response,
-};
-use heapless::{String, Vec};
-use log::{debug, info};
+use atat::{atat_derive::AtatResp, helpers::LossyStr, Error};
+use log::debug;
 
 /// NmeaResp
 #[derive(Debug, Clone, AtatResp, PartialEq)]

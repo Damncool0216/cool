@@ -1,5 +1,4 @@
 use atat::atat_derive::AtatCmd;
-use heapless::String;
 
 use super::{
     resps::{OkResp, OnOffResp},
@@ -8,7 +7,7 @@ use super::{
 
 /// AT - Verify COM is working
 #[derive(Clone, Debug, AtatCmd)]
-#[at_cmd("AT", OkResp, cmd_prefix = "", timeout_ms = 5000)]
+#[at_cmd("AT", OkResp, cmd_prefix = "", timeout_ms = 3000)]
 pub struct VerifyAT;
 
 ///  Get ATE - Echo is on/off

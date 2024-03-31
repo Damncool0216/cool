@@ -1,5 +1,3 @@
-use log::{debug, info};
-
 pub mod cmds;
 pub mod resps;
 pub mod types;
@@ -11,9 +9,7 @@ pub mod asynch {
     use atat::asynch::AtatClient;
     use atat::Error;
     use embedded_io_async::Write;
-    use log::{debug, info};
     use crate::general::types::OnOff;
-    use super::resps::NmeaResp;
     use super::types::{DeleteType, GnssConfig, NmeaConfig, NmeaType, NmeaVec, Outport};
     use super::cmds::{QAgpsSet, QGpsCfgApFlashSet, QGpsCfgAutoGpsSet, QGpsCfgGnssConfigSet, QGpsCfgGpsNmeaTypeSet, QGpsCfgNmeasrcSet, QGpsCfgOutPortSet, QGpsDelSet, QGpsEndSet, QGpsLocGet, QGpsNmeaGet};
 

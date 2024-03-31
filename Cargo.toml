@@ -55,6 +55,7 @@ embassy-executor = { version = "0.5.0", features = [
     "task-arena-size-8192",
 ] }
 embassy-time = { version = "0.3.0" }
+embassy-sync = {version = "0.5.0", default-features = false}
 
 embedded-hal = { version = "1.0.0" }
 #embedded-hal-1     = { version = "1.0.0", package = "embedded-hal" }

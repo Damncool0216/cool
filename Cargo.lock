@@ -133,6 +133,7 @@ dependencies = [
  "atat",
  "ec800m-at",
  "embassy-executor",
+ "embassy-sync",
  "embassy-time",
  "embedded-hal 1.0.0",
  "embedded-hal-async",
