@@ -1,0 +1,77 @@
+Date : 2024-03-31 22:16:58
+Directory : d:\Codefield\esp32-rust\coool
+Total : 34 files,  3850 codes, 114 comments, 439 blanks, all 4403 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| TOML     |          8 |      1,948 |         15 |        242 |      2,205 |
+| Rust     |         26 |      1,902 |         99 |        197 |      2,198 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++--------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                         | files      | code       | comment    | blank      | total      |
++--------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                            |         34 |      3,850 |        114 |        439 |      4,403 |
+| . (Files)                                                    |          3 |      1,387 |          4 |        164 |      1,555 |
+| .cargo                                                       |          1 |         13 |          2 |          6 |         21 |
+| adxl345                                                      |          2 |         17 |          0 |          5 |         22 |
+| adxl345 (Files)                                              |          1 |          5 |          0 |          2 |          7 |
+| adxl345\src                                                  |          1 |         12 |          0 |          3 |         15 |
+| ec800m-at                                                    |         19 |      2,228 |         86 |        230 |      2,544 |
+| ec800m-at (Files)                                            |          2 |        538 |          9 |         68 |        615 |
+| ec800m-at\src                                                |         17 |      1,690 |         77 |        162 |      1,929 |
+| ec800m-at\src (Files)                                        |          5 |        286 |         21 |         31 |        338 |
+| ec800m-at\src\general                                        |          4 |        118 |          6 |         21 |        145 |
+| ec800m-at\src\gnss                                           |          4 |        557 |         13 |         47 |        617 |
+| ec800m-at\src\mqtt                                           |          4 |        729 |         37 |         63 |        829 |
+| shtcx                                                        |          2 |         17 |          0 |          5 |         22 |
+| shtcx (Files)                                                |          1 |          5 |          0 |          2 |          7 |
+| shtcx\src                                                    |          1 |         12 |          0 |          3 |         15 |
+| src                                                          |          7 |        188 |         22 |         29 |        239 |
+| src (Files)                                                  |          1 |         55 |          6 |          9 |         70 |
+| src\drv                                                      |          6 |        133 |         16 |         20 |        169 |
++--------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++--------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                     | language | code       | comment    | blank      | total      |
++--------------------------------------------------------------+----------+------------+------------+------------+------------+
+| d:\Codefield\esp32-rust\coool\.cargo\config.toml             | TOML     |         13 |          2 |          6 |         21 |
+| d:\Codefield\esp32-rust\coool\Cargo.lock                     | TOML     |      1,292 |          2 |        150 |      1,444 |
+| d:\Codefield\esp32-rust\coool\Cargo.toml                     | TOML     |         91 |          2 |         12 |        105 |
+| d:\Codefield\esp32-rust\coool\adxl345\Cargo.toml             | TOML     |          5 |          0 |          2 |          7 |
+| d:\Codefield\esp32-rust\coool\adxl345\src\lib.rs             | Rust     |         12 |          0 |          3 |         15 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\Cargo.lock           | TOML     |        522 |          2 |         66 |        590 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\Cargo.toml           | TOML     |         16 |          7 |          2 |         25 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\client.rs        | Rust     |         15 |          0 |          3 |         18 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\digester.rs      | Rust     |         98 |         10 |         14 |        122 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\error.rs         | Rust     |         17 |          0 |          1 |         18 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\general\cmds.rs  | Rust     |         44 |          4 |          9 |         57 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\general\mod.rs   | Rust     |         43 |          0 |          6 |         49 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\general\resps.rs | Rust     |         25 |          2 |          6 |         33 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\general\types.rs | Rust     |          6 |          0 |          0 |          6 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\gnss\cmds.rs     | Rust     |        382 |         12 |         30 |        424 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\gnss\mod.rs      | Rust     |         76 |          0 |          2 |         78 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\gnss\resps.rs    | Rust     |         52 |          1 |          8 |         61 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\gnss\types.rs    | Rust     |         47 |          0 |          7 |         54 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\lib.rs           | Rust     |         16 |          0 |          4 |         20 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\mqtt\cmds.rs     | Rust     |        614 |         37 |         44 |        695 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\mqtt\mod.rs      | Rust     |          3 |          0 |          0 |          3 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\mqtt\resps.rs    | Rust     |          0 |          0 |          1 |          1 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\mqtt\types.rs    | Rust     |        112 |          0 |         18 |        130 |
+| d:\Codefield\esp32-rust\coool\ec800m-at\src\urc.rs           | Rust     |        140 |         11 |          9 |        160 |
+| d:\Codefield\esp32-rust\coool\rust-toolchain.toml            | TOML     |          4 |          0 |          2 |          6 |
+| d:\Codefield\esp32-rust\coool\shtcx\Cargo.toml               | TOML     |          5 |          0 |          2 |          7 |
+| d:\Codefield\esp32-rust\coool\shtcx\src\lib.rs               | Rust     |         12 |          0 |          3 |         15 |
+| d:\Codefield\esp32-rust\coool\src\drv\drv_at.rs              | Rust     |         73 |          0 |         13 |         86 |
+| d:\Codefield\esp32-rust\coool\src\drv\drv_gnss.rs            | Rust     |         47 |         16 |          3 |         66 |
+| d:\Codefield\esp32-rust\coool\src\drv\drv_gsensor.rs         | Rust     |          0 |          0 |          1 |          1 |
+| d:\Codefield\esp32-rust\coool\src\drv\drv_net.rs             | Rust     |          6 |          0 |          1 |          7 |
+| d:\Codefield\esp32-rust\coool\src\drv\drv_tsensor.rs         | Rust     |          0 |          0 |          1 |          1 |
+| d:\Codefield\esp32-rust\coool\src\drv\mod.rs                 | Rust     |          7 |          0 |          1 |          8 |
+| d:\Codefield\esp32-rust\coool\src\main.rs                    | Rust     |         55 |          6 |          9 |         70 |
+| Total                                                        |          |      3,850 |        114 |        439 |      4,403 |
++--------------------------------------------------------------+----------+------------+------------+------------+------------+

@@ -2,18 +2,14 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use drv::{drv_at_client_task, drv_at_ingress_task, drv_gnss::{drv_gnss_get_task_queue, drv_gnss_task, DrvGnssMsg}};
+use core::cell::RefCell;
+
+use drv::{drv_at_client_task, drv_at_ingress_task, drv_gnss::{drv_gnss_get_task_queue, drv_gnss_task, DrvGnssMsg}, drv_tsensor::drv_tsensor_task};
 
 use esp_backtrace as _;
 use embassy_executor::Spawner;
 use hal::{
-    clock::ClockControl,
-    embassy,
-    peripherals::Peripherals,
-    prelude::*,
-    timer::TimerGroup,
-    uart,
-    IO,
+    clock::ClockControl, embassy, i2c, peripherals::Peripherals, prelude::*, timer::TimerGroup, uart, IO
 };
 
 mod drv;
@@ -45,16 +41,24 @@ async fn main(spawner: Spawner) {
     serial1.listen_rx_fifo_full();
     let (writer, reader) = serial1.split();
 
+    let i2c = i2c::I2C::new(
+        peripherals.I2C0,
+        io.pins.gpio4,
+        io.pins.gpio5,
+        1u32.MHz(),
+        &clocks,
+    );
+
     // driver task
-    spawner.spawn(drv_at_ingress_task(reader)).ok();
-    spawner.spawn(drv_at_client_task(writer)).ok();
-    //spawner.spawn(drv_net_task()).ok(); //! todo
-    spawner.spawn(drv_gnss_task()).ok();
-    //spawner.spawn(drv_temp_task()).ok(); //! todo
-    //spawner.spawn(drv_gsensor_task()).ok(); //! todo
+    //spawner.spawn(drv_at_ingress_task(reader)).ok();
+    //spawner.spawn(drv_at_client_task(writer)).ok();
+    //spawner.spawn(drv_net_task()).ok(); //todo
+    //spawner.spawn(drv_gnss_task()).ok();
+    spawner.spawn(drv_tsensor_task(i2c)).ok(); //todo
+    //spawner.spawn(drv_gsensor_task()).ok(); //todo
 
     // app task
-    spawner.spawn(app_master_task()).ok();
+    //spawner.spawn(app_master_task()).ok(); //todo
 }
 
 #[embassy_executor::task]

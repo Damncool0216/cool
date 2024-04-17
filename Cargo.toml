@@ -10,7 +10,9 @@ ec800m-at = { path = "ec800m-at", default-features = false, features = [
     "async",
     "debug",
 ] }
+adxl345 = {path = "adxl345", default-features = false, features = ["i16x3", "spi"]}
 
+shtcx = {version = "0.11.0"}
 nmea = { version = "0.6.0", default-features = false, features = [
     "GBS",
     "GGA",
@@ -21,6 +23,7 @@ nmea = { version = "0.6.0", default-features = false, features = [
     "RMC",
     "VTG",
 ] }
+lite-json = { version = "0.2.0", default-features = false, defaults = ["no_std"] }
 nb = "1.0.0"
 log = { version = "0.4.20" }
 heapless = { version = "0.8.0" }
