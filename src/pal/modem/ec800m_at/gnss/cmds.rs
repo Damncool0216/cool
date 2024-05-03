@@ -1,11 +1,14 @@
-use crate::general::{
+use super::super::general::{
     resps::{NoResp, OkResp},
     types::OnOff,
 };
 use atat::atat_derive::AtatCmd;
 use heapless::String;
 
-use super::{resps::NmeaResp, types::{DeleteType, GnssConfig, NmeaConfig, NmeaType, Outport}};
+use super::{
+    resps::NmeaResp,
+    types::{DeleteType, GnssConfig, NmeaConfig, NmeaType, Outport},
+};
 
 /// 2.3.1.1 AT+QGPSCFG="outport" 配置NMEA语句输出端口
 #[derive(Clone, Debug, AtatCmd)]
@@ -155,7 +158,7 @@ impl QGpsCfgApFlashSet {
     pub fn new(on_off: OnOff) -> Self {
         Self {
             cfg: String::try_from("apflash").unwrap(),
-            on_off: on_off as u8
+            on_off: on_off as u8,
         }
     }
 }
@@ -245,7 +248,7 @@ pub struct QAgpsSet {
 impl QAgpsSet {
     pub fn new(on_off: OnOff) -> Self {
         Self {
-            on_off: on_off as u8
+            on_off: on_off as u8,
         }
     }
 }

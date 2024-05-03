@@ -10,7 +10,7 @@ use atat::{
     DigestResult, Digester, Parser,
 };
 
-use crate::urc::URCMessages;
+use super::urc::URCMessages;
 
 #[cfg(feature = "debug")]
 use log::{debug, info};

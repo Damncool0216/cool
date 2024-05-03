@@ -9,7 +9,7 @@ use hal::{peripherals::UART1, UartRx, UartTx};
 use log::info;
 use static_cell::StaticCell;
 
-const RX_SIZE: usize = 1024;
+const RX_SIZE: usize = 2048;
 const INGRESS_BUF_SIZE: usize = RX_SIZE;
 const URC_SUBSCRIBERS: usize = 0;
 const URC_CAPACITY: usize = RX_SIZE * 3;

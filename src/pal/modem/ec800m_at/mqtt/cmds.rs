@@ -1,4 +1,4 @@
-use crate::general::resps::OkResp;
+use super::super::general::resps::OkResp;
 use atat::atat_derive::AtatCmd;
 use heapless::String;
 

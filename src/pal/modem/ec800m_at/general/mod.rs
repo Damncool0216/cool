@@ -4,8 +4,8 @@ pub mod types;
 
 #[cfg(feature = "async")]
 pub mod asynch {
-    use crate::client::asynch::Ec800mClient as Client;
-    use crate::general::cmds::{AtW, AteSet, VerifyAT};
+    use super::super::client::asynch::Ec800mClient as Client;
+    use super::super::general::cmds::{AtW, AteSet, VerifyAT};
     use atat::asynch::AtatClient;
     use atat::Error;
     use embedded_io_async::Write;

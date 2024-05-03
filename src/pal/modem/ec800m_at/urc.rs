@@ -3,7 +3,7 @@
 //! This is just used internally, but needs to be public for passing [URCMessages] as a generic to
 //! [AtDigester](atat::digest::AtDigester): `AtDigester<URCMessages>`.
 
-use crate::urc::URCMessages::SystemStart;
+use super::urc::URCMessages::SystemStart;
 use atat::digest::ParseError;
 #[cfg(feature = "debug")]
 use atat::helpers::LossyStr;
@@ -96,7 +96,6 @@ impl AtatUrc for URCMessages {
 
     fn parse(resp: &[u8]) -> Option<Self::Response> {
         match resp {
-            
             b"SYSTEM START" => Some(SystemStart),
             b if b.starts_with(b"SOFT VERSION:") => URCMessages::parse_software_version(resp).ok(),
             b if b.starts_with(b"NEXT TX after(s):") => URCMessages::parse_next_tx(resp).ok(),
