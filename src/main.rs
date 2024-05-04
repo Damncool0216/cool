@@ -6,9 +6,9 @@ use backtrace as _;
 use embassy_executor::Spawner;
 
 use hal::prelude::*;
-pub mod apl;
-pub mod fml;
-pub mod pal;
+mod apl;
+mod fml;
+mod pal;
 
 #[main]
 async fn main(spawner: Spawner) {

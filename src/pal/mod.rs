@@ -11,7 +11,7 @@ use hal::{
     delay, embassy,
     gpio::IO,
     i2c::{self, I2C},
-    peripherals::{Peripherals, I2C0},
+    peripherals::{self, Peripherals, I2C0},
     prelude::*,
     timer::TimerGroup,
     uart, Blocking,
@@ -29,7 +29,7 @@ mod mlog;
 
 #[allow(unused)]
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-pub(self) enum PalMsg {
+pub(crate) enum PalMsg {
     None,
     //Gnss
     GnssMsgBegin,
@@ -58,7 +58,7 @@ static I2C_INIT: StaticCell<critical_section::Mutex<RefCell<I2C<'static, I2C0, B
 static DELAY_INIT: StaticCell<delay::Delay> = StaticCell::new();
 
 #[inline]
-pub(self) async fn msg_req(msg: PalMsg) {
+pub(crate) async fn msg_req(msg: PalMsg) {
     match msg {
         msg if msg > PalMsg::GnssMsgBegin && msg < PalMsg::GnssMsgEnd => gnss::msg_req(msg).await,
         _ => {}
@@ -96,7 +96,6 @@ pub(crate) fn init(spawner: &Spawner) {
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
     let timer_group0 = TimerGroup::new_async(peripherals.TIMG0, &clocks);
     embassy::init(&clocks, timer_group0);
-    //let delay: &'static mut delay::Delay = DELAY_INIT.init(delay::Delay::new(&clocks));
     spawner.spawn(pal_msg_to_fml_task()).unwrap();
 
     //init uart at modem
@@ -115,12 +114,13 @@ pub(crate) fn init(spawner: &Spawner) {
     );
     let mut serial1 =
         uart::Uart::new_async_with_config(peripherals.UART1, config, Some(pins), &clocks);
-    serial1.set_rx_fifo_full_threshold(6).unwrap();
+    serial1.set_rx_fifo_full_threshold(500).unwrap();
     serial1.set_at_cmd(uart::config::AtCmdConfig::new(
-        None, None, None, b'\n', None,
-    )); //not work! shit
+        Some(0), Some(0), None, b'\n', Some(1),
+    )); //work!!! not shit now
     serial1.listen_at_cmd();
     serial1.listen_rx_fifo_full();
+
     let (writer, reader) = serial1.split();
     spawner.spawn(modem::pal_at_ingress_task(reader)).unwrap();
     spawner.spawn(modem::pal_at_client_task(writer)).unwrap();

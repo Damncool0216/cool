@@ -92,7 +92,3 @@ pub(super) async fn pal_tsensor_task(mut delay: delay::Delay, i2c: I2cClient<'st
         pal_tsensor_sleep(&mut sht);
     }
 }
-
-pub(crate) async fn get_temi_humi_req() {
-    msg_req(PalMsg::TempHumiGetReq).await
-}
