@@ -20,13 +20,11 @@ pub struct Ec800mDigester;
 
 impl Ec800mDigester {
     pub fn custom_error(buf: &[u8]) -> Result<(&[u8], usize), ParseError> {
-        let (_reminder, (head, data, tail)) = branch::alt((
-            sequence::tuple((
-                combinator::success(&b""[..]),
-                bytes::streaming::tag(b"ERROR(-1)"),
-                bytes::streaming::tag(b"\r\n"),
-            )),
-        ))(buf)?;
+        let (_reminder, (head, data, tail)) = branch::alt((sequence::tuple((
+            combinator::success(&b""[..]),
+            bytes::streaming::tag(b"ERROR(-1)"),
+            bytes::streaming::tag(b"\r\n"),
+        )),))(buf)?;
         #[cfg(feature = "debug")]
         debug!("Custom error {:?}", LossyStr(data));
         Ok((data, head.len() + data.len() + tail.len()))
@@ -77,7 +75,7 @@ impl Digester for Ec800mDigester {
                 if len > 0 {
                     #[cfg(feature = "debug")]
                     debug!("general success resp match: {:?},{}", result, len);
-                    return (result, len)
+                    return (result, len);
                 }
             }
             Err(nom::Err::Incomplete(_)) => return incomplete,

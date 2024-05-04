@@ -163,6 +163,7 @@ version = "0.1.0"
 dependencies = [
  "adxl345_driver2",
  "atat",
+ "critical-section",
  "embassy-executor",
  "embassy-sync",
  "embassy-time",
@@ -184,7 +185,6 @@ dependencies = [
  "nb 1.1.0",
  "nmea",
  "serde-json-core",
- "shtcx",
  "static_cell",
 ]
 
@@ -504,6 +504,7 @@ dependencies = [
  "embassy-time-driver",
  "embedded-can",
  "embedded-dma",
+ "embedded-hal 0.2.7",
  "embedded-hal 1.0.0",
  "embedded-hal-async",
  "embedded-hal-nb",
@@ -1203,15 +1204,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eb3622f419d1296904700073ea6cc23ad690adbd66f13ea683df73298736f0c1"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "shtcx"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5bd1204f09b6ac592e246244e611a42a7d8f373b52dd8af27435305469e9a4d"
-dependencies = [
- "embedded-hal 0.2.7",
 ]
 
 [[package]]

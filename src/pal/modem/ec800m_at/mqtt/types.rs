@@ -13,7 +13,7 @@ pub enum MqttClientIdx {
 #[repr(u8)]
 pub enum MqttVersion {
     V3_1 = 3,
-    V3_1_1 = 4
+    V3_1_1 = 4,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -51,7 +51,7 @@ pub enum MqttSslCtxIdx {
     I2,
     I3,
     I4,
-    I5
+    I5,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -122,8 +122,5 @@ pub enum MqttViewMode {
 #[repr(u8)]
 pub enum MqttEditMode {
     TimeoutOff = 0,
-    TimeoutOn = 1
+    TimeoutOn = 1,
 }
-
-
-

@@ -1,13 +1,14 @@
 #![no_std]
 #![no_main]
+#![allow(dead_code)]
 
-use embassy_executor::Spawner;
 use backtrace as _;
+use embassy_executor::Spawner;
 
 use hal::prelude::*;
-mod pal;
-mod fml;
-mod apl;
+pub mod apl;
+pub mod fml;
+pub mod pal;
 
 #[main]
 async fn main(spawner: Spawner) {

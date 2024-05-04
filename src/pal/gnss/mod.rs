@@ -5,6 +5,6 @@ pub async fn open_req() {
 }
 
 #[inline]
-pub(crate) async fn msg_req(msg: PalMsg) {
+pub(super) async fn msg_req(msg: PalMsg) {
     modem::msg_req(msg).await
 }

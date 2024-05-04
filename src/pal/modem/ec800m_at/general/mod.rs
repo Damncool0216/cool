@@ -9,7 +9,7 @@ pub mod asynch {
     use atat::asynch::AtatClient;
     use atat::Error;
     use embedded_io_async::Write;
-    use log::{debug, info};
+    use log::debug;
 
     use super::types::OnOff;
 
@@ -18,9 +18,7 @@ pub mod asynch {
             let cmd = VerifyAT;
             let resp = self.client.send(&cmd).await;
             match resp {
-                Ok(_) => {
-                    Ok(resp.is_ok())
-                }
+                Ok(_) => Ok(resp.is_ok()),
                 Err(e) => {
                     #[cfg(feature = "debug")]
                     debug!("{:?}", e);
@@ -33,7 +31,7 @@ pub mod asynch {
             let command = AteSet::new(on_off);
             let resp = self.client.send(&command).await?;
             #[cfg(feature = "debug")]
-            info!("{:?} resp", resp);
+            debug!("{:?} resp", resp);
             Ok(resp.is_ok())
         }
 
@@ -41,7 +39,7 @@ pub mod asynch {
             let command = AtW;
             let resp = self.client.send(&command).await?;
             #[cfg(feature = "debug")]
-            info!("{:?} resp", resp);
+            debug!("{:?} resp", resp);
             Ok(resp.is_ok())
         }
     }
