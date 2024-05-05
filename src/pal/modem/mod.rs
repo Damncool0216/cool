@@ -12,9 +12,9 @@ use hal::{
 
 use static_cell::StaticCell;
 
-use crate::{mdebug, pal};
+use crate::{mdebug, minfo, pal};
 
-use super::{PalMsg, PalQueue};
+use super::{Msg, MsgQueue};
 
 mod ec800m_at;
 
@@ -31,15 +31,15 @@ type AtClient<'a> = Ec800mClient<'a, AtWriter<'a>, INGRESS_BUF_SIZE>;
 
 static RES_SLOT: ResponseSlot<INGRESS_BUF_SIZE> = ResponseSlot::new();
 
-static PAL_MODEM_TASK_QUEUE: PalQueue<20> = channel::Channel::new();
+static PAL_MODEM_TASK_QUEUE: MsgQueue<30> = channel::Channel::new();
 
 #[inline]
-pub(super) async fn msg_req(msg: PalMsg) {
+pub(super) async fn msg_req(msg: Msg) {
     PAL_MODEM_TASK_QUEUE.send(msg).await
 }
 
 #[inline]
-pub(super) async fn msg_rpy(msg: PalMsg) {
+pub(super) async fn msg_rpy(msg: Msg) {
     pal::msg_rpy(msg).await
 }
 
@@ -66,21 +66,21 @@ pub(super) async fn pal_at_client_task(writer: AtWriter<'static>) {
 
     loop {
         let msg = PAL_MODEM_TASK_QUEUE.receive().await;
-        mdebug!("{:?}", msg);
+        minfo!("{:?}", msg);
         match msg {
-            PalMsg::GnssOpenReq => {
-                msg_rpy(PalMsg::GnssOpenRpy(
+            Msg::GnssOpenReq => {
+                msg_rpy(Msg::GnssOpenRpy(
                     at_client.gps_set_sw(OnOff::On).await.is_ok(),
                 ))
                 .await
             }
-            PalMsg::GnssCloseReq => {
-                msg_rpy(PalMsg::GnssCloseRpy(
+            Msg::GnssCloseReq => {
+                msg_rpy(Msg::GnssCloseRpy(
                     at_client.gps_set_sw(OnOff::On).await.is_ok(),
                 ))
                 .await
             }
-            PalMsg::GnssGetLocationReq => {
+            Msg::GnssGetLocationReq => {
                 at_client.gps_get_location().await.ok();
             }
             _ => {}
@@ -102,3 +102,7 @@ pub(super) async fn pal_at_ingress_task(mut reader: AtReader<'static>) {
 
     ingress.read_from(&mut reader).await
 }
+
+//AT+QMTCFG="version",1,4
+//AT+QMTOPEN=1,"mqtts.heclouds.com",1883
+//AT+QMTCONN=1,cool,g7R22epB27,version=2018-10-31&res=products%2Fg7R22epB27%2Fdevices%2Fcool&et=1813073329&method=md5&sign=CY0EPrmjfaqD3yiLUn731w%3D%3D

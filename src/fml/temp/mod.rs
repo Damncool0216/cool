@@ -1,10 +1,13 @@
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel, mutex::Mutex};
 use function_name::named;
 
-use crate::{mdebug, pal};
+use crate::{
+    mdebug, minfo,
+    pal::{self, Msg, MsgQueue},
+};
 
 async fn get_temp_humi_req() {
-    pal::msg_req(pal::PalMsg::TempHumiGetReq).await
+    pal::msg_req(pal::Msg::TsensorGetReq).await
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -15,7 +18,7 @@ struct FmLTempNvm {
 
 impl FmLTempNvm {
     pub fn default() -> Self {
-        Self { detect_inv: 1 }
+        Self { detect_inv: 5 }
     }
 }
 
@@ -30,7 +33,7 @@ pub(super) async fn fml_temp_detect_task() {
         *(FML_TEMP_NVM.lock().await) = Some(FmLTempNvm::default())
     }
     loop {
-        //get_temp_humi_req().await;
+        get_temp_humi_req().await;
         let mut after = embassy_time::Timer::after_secs(1 * 60);
         if let Some(fml_temp_nvm) = &*FML_TEMP_NVM.lock().await {
             // not await in lock
@@ -39,6 +42,28 @@ pub(super) async fn fml_temp_detect_task() {
         }
         after.await
     }
+}
+
+static FML_TEMP_MSG_QUEUE: MsgQueue<10> = channel::Channel::new();
+#[embassy_executor::task]
+#[allow(unused_macros)]
+#[named]
+pub(super) async fn fml_temp_msg_rpy_task() {
+    loop {
+        let msg = FML_TEMP_MSG_QUEUE.receive().await;
+        minfo!("{:?}", msg);
+        match msg {
+            Msg::TsensorGetRpy { temp, humi } => {
+                minfo!("temp:{} °C humi:{} %RH", temp, humi);
+            }
+            _ => {}
+        }
+    }
+}
+
+#[inline]
+pub(super) async fn msg_rpy(msg: Msg) {
+    FML_TEMP_MSG_QUEUE.send(msg).await
 }
 
 // #[embassy_executor::task]

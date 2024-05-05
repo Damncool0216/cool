@@ -1,10 +1,6 @@
-use super::{modem, PalMsg};
-
-pub async fn open_req() {
-    msg_req(PalMsg::GnssOpenReq).await
-}
+use super::{modem, Msg};
 
 #[inline]
-pub(super) async fn msg_req(msg: PalMsg) {
+pub(super) async fn msg_req(msg: Msg) {
     modem::msg_req(msg).await
 }

@@ -8,16 +8,16 @@ use hal::{i2c::I2C, peripherals::I2C0};
 use shtcx::sensor_class::Sht2Gen;
 use shtcx::{LowPower, Measurement, PowerMode, ShtCx};
 
-use crate::{mdebug, pal};
+use crate::{mdebug, minfo, pal};
 
-use super::{PalMsg, PalQueue};
+use super::{Msg, MsgQueue};
 
 type I2cClient<'a> = embedded_hal_bus::i2c::CriticalSectionDevice<'a, I2C<'a, I2C0, Blocking>>;
 type Tsensor = ShtCx<Sht2Gen, I2cClient<'static>>;
-static PAL_TSENSOR_TASK_QUEUE: PalQueue<10> = channel::Channel::new();
+static PAL_TSENSOR_TASK_QUEUE: MsgQueue<10> = channel::Channel::new();
 
 #[inline]
-pub(super) async fn msg_req(msg: PalMsg) {
+pub(super) async fn msg_req(msg: Msg) {
     PAL_TSENSOR_TASK_QUEUE.send(msg).await
 }
 
@@ -61,15 +61,17 @@ async fn pal_temp_humi_get(
 pub(super) async fn pal_tsensor_task(mut delay: delay::Delay, i2c: I2cClient<'static>) {
     let mut sht = shtcx::shtc3(i2c);
     pal_tsensor_wakeup(&mut sht).await;
-    let device_id = sht.device_identifier().unwrap();
-    let raw_id = sht.raw_id_register().unwrap();
-    mdebug!("sht device_id:{device_id}, raw_id:{raw_id}");
+    mdebug!(
+        "device_id:{:?}, raw_id: {:?}",
+        sht.device_identifier(),
+        sht.raw_id_register()
+    );
     loop {
         let msg = PAL_TSENSOR_TASK_QUEUE.receive().await;
-        mdebug!("{:?}", msg);
+        minfo!("{:?}", msg);
         pal_tsensor_wakeup(&mut sht).await;
         match msg {
-            PalMsg::TempHumiGetReq => {
+            Msg::TsensorGetReq => {
                 // if let Ok(t) = pal_temp_humi_get(&mut sht).await {
                 //     pal::msg_rpy(PalMsg::TempHumiGetRpy {
                 //         temp: t.temperature.as_degrees_celsius(),
@@ -80,7 +82,7 @@ pub(super) async fn pal_tsensor_task(mut delay: delay::Delay, i2c: I2cClient<'st
 
                 // blocking way, avoid confict with other i2c task
                 if let Ok(t) = sht.measure(PowerMode::LowPower, &mut delay) {
-                    pal::msg_rpy(PalMsg::TempHumiGetRpy {
+                    pal::msg_rpy(Msg::TsensorGetRpy {
                         temp: t.temperature.as_degrees_celsius(),
                         humi: t.humidity.as_percent(),
                     })
