@@ -36,24 +36,41 @@ pub(crate) enum Msg {
     GnssCloseRpy(bool),
     GnssGetLocationReq,
     GnssMsgEnd,
+
+    //net
+    NetMsgBegin,
+    NetSimStatReq,
+    NetSimStatRpy(bool),
+    NetAttachStatReq(Option<u8>),
+    NetAttachStatRpy {
+        stat: u8,
+        lac: Option<u16>,
+        ci: Option<u32>,
+        act: Option<u8>,
+    },
+    NetMsgEnd,
+
     //Mqtt
     MqttMsgBegin,
     MqttOpenReq,
     MqttOpenRpy(bool),
     MqttConnReq,
     MqttConnRpy(bool),
+    MqttPubReq,
+    MqttPubRpy(bool),
     MqttCloseReq,
     MqttCloseRpy(bool),
     MqttEvent,
     MqttMsgEnd,
     //File
 
-    //Modem
-    ModemResetReq,
     //Tsensor
     TsensorMsgBegin,
     TsensorGetReq,
-    TsensorGetRpy { temp: f32, humi: f32 },
+    TsensorGetRpy {
+        temp: f32,
+        humi: f32,
+    },
     TsensorMsgEnd,
 
     //Gsensor,
@@ -74,7 +91,8 @@ static DELAY_INIT: StaticCell<delay::Delay> = StaticCell::new();
 pub(crate) async fn msg_req(msg: Msg) {
     match msg {
         msg if (msg > Msg::GnssMsgBegin && msg < Msg::GnssMsgEnd)
-            || (msg > Msg::MqttMsgBegin && msg < Msg::MqttMsgEnd) =>
+            || (msg > Msg::MqttMsgBegin && msg < Msg::MqttMsgEnd)
+            || (msg > Msg::NetMsgBegin && msg < Msg::NetMsgEnd) =>
         {
             modem::msg_req(msg).await
         }
@@ -127,8 +145,10 @@ pub(super) fn init(spawner: &Spawner) {
     serial1.listen_rx_fifo_full();
 
     let (writer, reader) = serial1.split();
+
     spawner.spawn(modem::pal_at_ingress_task(reader)).unwrap();
     spawner.spawn(modem::pal_at_client_task(writer)).unwrap();
+    spawner.spawn(modem::pal_at_urc_task()).unwrap();
 
     //init i2c tsensor
     let i2c = i2c::I2C::new(
@@ -151,11 +171,6 @@ pub(super) fn init(spawner: &Spawner) {
 
     let gsensor_i2c = embedded_hal_bus::i2c::CriticalSectionDevice::new(i2c);
     let gensor_int2 = io.pins.gpio3.into_floating_input().degrade();
-    // let mut spi = spi::master::Spi::new(peripherals.SPI2, 2u32.MHz(), SpiMode::Mode0, &clocks);
-    // spi = spi::master::Spi::<_, FullDuplexMode>::with_miso(spi, io.pins.gpio10);
-    // spi = spi::master::Spi::<_, FullDuplexMode>::with_mosi(spi, io.pins.gpio3);
-    // spi = spi::master::Spi::<_, FullDuplexMode>::with_sck(spi, io.pins.gpio2);
-    // let cs = io.pins.gpio7.into_open_drain_output();
 
     spawner
         .spawn(gsensor::pal_gsensor_task(

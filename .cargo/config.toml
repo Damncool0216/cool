@@ -5,9 +5,10 @@ runner = "espflash flash --monitor"
 ESP_LOGLEVEL="Debug"
 MQTT_SERVER_DOMAIN="mqtts.heclouds.com"
 MQTT_SERVER_PORT="1883"
-MQTT_CLIENT_ID="cool"
-MQTT_USERNAME="g7R22epB27"
-MQTT_PASSWORD="version=2018-10-31&res=products%2Fg7R22epB27%2Fdevices%2Fcool&et=1813073329&method=md5&sign=CY0EPrmjfaqD3yiLUn731w%3D%3D"
+MQTT_CLIENT_ID="damn"     #"cool"
+MQTT_USERNAME="7Z4GCgffn6"#"g7R22epB27"
+MQTT_PASSWORD="version=2018-10-31&res=products%2F7Z4GCgffn6%2Fdevices%2Fdamn&et=1815012638&method=md5&sign=imtWIK4%2B3KPmuuG4mjVP%2BA%3D%3D"
+#"version=2018-10-31&res=products%2Fg7R22epB27%2Fdevices%2Fcool&et=1813073329&method=md5&sign=CY0EPrmjfaqD3yiLUn731w%3D%3D"
 [build]
 rustflags = [
   "-C", "link-arg=-Tlinkall.x",

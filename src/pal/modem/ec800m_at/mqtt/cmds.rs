@@ -1,5 +1,7 @@
+use crate::pal::modem::ec800m_at::general::resps::{NoResp, SendResp};
+
 use super::super::general::resps::OkResp;
-use atat::atat_derive::AtatCmd;
+use atat::atat_derive::{AtatCmd, AtatResp};
 use heapless::String;
 
 use super::types::{
@@ -512,9 +514,20 @@ impl QMtCfgEditTimeoutSet {
 }
 
 /// 3.3.2. AT+QMTOPEN 打开 MQTT 客户端网络
+#[derive(Debug, Clone, AtatResp, PartialEq)]
+pub struct QMtOpenResp {
+    pub client_idx: u8,
+    pub result: u8,
+}
+impl QMtOpenResp {
+    pub fn is_open(&self) -> bool {
+        self.result == 0
+    }
+}
+
 #[derive(Clone, Debug, AtatCmd)]
 #[at_cmd("+QMTOPEN", OkResp, timeout_ms = 1000)]
-pub struct QMtOpenSet<'a> {
+pub struct QMtOpen<'a> {
     #[at_arg(position = 1)]
     client_idx: u8,
     #[at_arg(position = 2, len = 200)]
@@ -523,7 +536,7 @@ pub struct QMtOpenSet<'a> {
     port: u16,
 }
 
-impl<'a> QMtOpenSet<'a> {
+impl<'a> QMtOpen<'a> {
     pub fn new(client_idx: MqttClientIdx, host_name: &'a str, port: u16) -> Self {
         Self {
             client_idx: client_idx as u8,
@@ -536,12 +549,12 @@ impl<'a> QMtOpenSet<'a> {
 /// 3.3.3. AT+QMTCLOSE 关闭 MQTT 客户端网络
 #[derive(Clone, Debug, AtatCmd)]
 #[at_cmd("+QMTCLOSE", OkResp, timeout_ms = 600)]
-pub struct QMtCloseSet {
+pub struct QMtClose {
     #[at_arg(position = 1)]
     client_idx: u8,
 }
 
-impl QMtCloseSet {
+impl QMtClose {
     pub fn new(client_idx: MqttClientIdx) -> Self {
         Self {
             client_idx: client_idx as u8,
@@ -552,7 +565,7 @@ impl QMtCloseSet {
 /// 3.3.4. AT+QMTCONN 连接客户端到 MQTT 服务器
 #[derive(Clone, Debug, AtatCmd)]
 #[at_cmd("+QMTCONN", OkResp, timeout_ms = 5000)]
-pub struct QMtConnSet<'a> {
+pub struct QMtConn<'a> {
     #[at_arg(position = 1)]
     client_idx: u8,
     #[at_arg(position = 2, len = 50)]
@@ -562,7 +575,7 @@ pub struct QMtConnSet<'a> {
     #[at_arg(position = 4, len = 50)]
     password: Option<&'a str>,
 }
-impl<'a> QMtConnSet<'a> {
+impl<'a> QMtConn<'a> {
     pub fn new(
         client_idx: MqttClientIdx,
         clientid: &'a str,
@@ -638,10 +651,24 @@ impl<'a> QMtUnsSet<'a> {
     }
 }
 
+#[derive(Clone, Debug, AtatCmd)]
+#[at_cmd(
+    "",
+    NoResp,
+    cmd_prefix = "",
+    timeout_ms = 10000,
+    quote_escape_strings = false,
+    value_sep = false
+)]
+pub struct SendData<'a> {
+    #[at_arg(position = 1, len = 1024)]
+    pub data: &'a str,
+}
+
 /// 3.3.8. AT+QMTPUBEX 发布消息
 #[derive(Clone, Debug, AtatCmd)]
-#[at_cmd("+QMTPUBEX", OkResp, timeout_ms = 15000)]
-pub struct QMtPubexSet<'a> {
+#[at_cmd("+QMTPUBEX", SendResp, timeout_ms = 15000, parse = SendResp::parse)]
+pub struct QMtPubEx<'a> {
     #[at_arg(position = 1)]
     client_idx: u8,
     #[at_arg(position = 2)]
@@ -655,7 +682,7 @@ pub struct QMtPubexSet<'a> {
     #[at_arg(position = 6)]
     length: u16,
 }
-impl<'a> QMtPubexSet<'a> {
+impl<'a> QMtPubEx<'a> {
     pub fn new(
         client_idx: MqttClientIdx,
         msgid: u16,

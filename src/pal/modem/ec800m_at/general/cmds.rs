@@ -1,4 +1,5 @@
 use atat::atat_derive::AtatCmd;
+use heapless::String;
 
 use super::{
     resps::{OkResp, OnOffResp},
@@ -33,6 +34,24 @@ impl AteSet {
 #[derive(Clone, Debug, AtatCmd)]
 #[at_cmd("AT&W0", OkResp, cmd_prefix = "", timeout_ms = 500, value_sep = false)]
 pub struct AtW;
+
+//2.24. AT+QURCCFG 配置 URC 指示选项
+#[derive(Clone, Debug, AtatCmd)]
+#[at_cmd("+QURCCFG", OkResp, timeout_ms = 600)]
+pub struct QUrcCfgPort {
+    #[at_arg(position = 1)]
+    cfg: String<10>,
+    #[at_arg(position = 2)]
+    port: String<10>,
+}
+impl QUrcCfgPort {
+    pub fn new() -> Self {
+        Self {
+            cfg: String::try_from("urcport").unwrap(),
+            port: String::try_from("uart1").unwrap(),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

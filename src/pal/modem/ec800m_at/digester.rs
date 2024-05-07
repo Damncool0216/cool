@@ -69,6 +69,17 @@ impl Digester for Ec800mDigester {
         // Incomplete. Eat the echo and do nothing else.
         let incomplete = (DigestResult::None, 0);
 
+        //prompt
+        match parser::prompt_response(input) {
+            Ok((_, (result, len))) => {
+                if len > 0 {
+                    #[cfg(feature = "debug")]
+                    debug!("general prompt resp match: {:?},{}", result, len);
+                    return (result, len);
+                }
+            }
+            Err(_) => {}
+        }
         //Generic success replies
         match parser::success_response(input) {
             Ok((_, (result, len))) => {
@@ -91,7 +102,13 @@ impl Digester for Ec800mDigester {
 
         // Cust success matches
         match (Ec800mDigester::custom_success)(input) {
-            Ok((response, len)) => return (DigestResult::Response(Ok(response)), len),
+            Ok((response, len)) => {
+                if len > 0 {
+                    #[cfg(feature = "debug")]
+                    debug!("custom success resp match: {:?},{}", response, len);
+                }
+                return (DigestResult::Response(Ok(response)), len);
+            }
             Err(ParseError::Incomplete) => return incomplete,
             _ => {}
         }

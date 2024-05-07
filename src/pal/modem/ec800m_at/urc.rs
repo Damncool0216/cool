@@ -3,7 +3,8 @@
 //! This is just used internally, but needs to be public for passing [URCMessages] as a generic to
 //! [AtDigester](atat::digest::AtDigester): `AtDigester<URCMessages>`.
 
-use super::urc::URCMessages::SystemStart;
+#[cfg(feature = "debug")]
+use crate::{debug, info};
 use atat::digest::ParseError;
 #[cfg(feature = "debug")]
 use atat::helpers::LossyStr;
@@ -11,7 +12,7 @@ use atat::{
     nom::{branch, bytes, character, combinator, sequence},
     AtatUrc, Parser,
 };
-#[cfg(feature = "debug")]
+use function_name::named;
 use log::error;
 
 /// URC definitions, needs to passed as generic of [AtDigester](atat::digest::AtDigester): `AtDigester<URCMessages>`
@@ -19,141 +20,235 @@ use log::error;
 pub enum URCMessages {
     /// Unknown URC message
     Unknown,
-    AteOn,
-    AteOff,
-    SystemStart,
-    SoftwareVersion(u8, u8, u8),
-    LoraVersion(u32),
-    NextTxInSeconds(u16),
+    QmtOpen {
+        client_idx: u16,
+        result: i8,
+    },
+    QmtClose,
+    QmtConn {
+        client_idx: u16,
+        result: u8,
+        ret_code: u8,
+    },
+    QmtPubex {
+        client_idx: u16,
+        result: u8,
+        ret_code: u8,
+    },
+    CREG {
+        stat: u8,
+        lac: u16,
+        ci: u32,
+        act: u8,
+    },
+    QmtStat,
 }
 
 impl URCMessages {
-    pub(crate) fn parse_software_version(buf: &[u8]) -> Result<URCMessages, ParseError> {
-        let (_, (_, major, _, minor, _, patch)) = sequence::tuple((
-            bytes::streaming::tag("SOFT VERSION:"),
-            bytes::streaming::take_while(character::is_digit),
-            bytes::streaming::tag("."),
-            bytes::streaming::take_while(character::is_digit),
-            bytes::streaming::tag("."),
-            bytes::streaming::take_while(character::is_digit),
+    #[named]
+    pub(crate) fn parse_qmt_open(buf: &[u8]) -> Result<URCMessages, ParseError> {
+        debug!("start parse qmt open");
+        let (_, (_, id, _, res)) = sequence::tuple((
+            bytes::complete::tag("+QMTOPEN: "),
+            combinator::map_parser(
+                bytes::complete::take_while(character::is_digit),
+                character::complete::u16,
+            ),
+            bytes::streaming::tag(","),
+            combinator::map_parser(
+                bytes::complete::take_while(character::is_digit),
+                character::complete::i8,
+            ),
         ))(buf)?;
-
-        match (
-            core::str::from_utf8(major),
-            core::str::from_utf8(minor),
-            core::str::from_utf8(patch),
-        ) {
-            (Ok(major), Ok(minor), Ok(patch)) => match (
-                major.parse::<u8>(),
-                minor.parse::<u8>(),
-                patch.parse::<u8>(),
-            ) {
-                (Ok(major), Ok(minor), Ok(patch)) => {
-                    Ok(URCMessages::SoftwareVersion(major, minor, patch))
-                }
-                _ => {
-                    #[cfg(feature = "debug")]
-                    error!("Failed to parse u8 values for software version");
-                    Err(ParseError::NoMatch)
-                }
-            },
-            _ => {
-                #[cfg(feature = "debug")]
-                error!(
-                    "Failed to parse software version strings [{:?}, {:?}, {:?}]",
-                    LossyStr(major),
-                    LossyStr(minor),
-                    LossyStr(patch)
-                );
-                Err(ParseError::NoMatch)
-            }
-        }
+        let urc = URCMessages::QmtOpen {
+            client_idx: id,
+            result: res,
+        };
+        debug!("{:?}", urc);
+        Ok(urc)
     }
 
-    pub(crate) fn parse_next_tx(buf: &[u8]) -> Result<URCMessages, ParseError> {
-        let (_, (_, seconds)) = sequence::tuple((
-            bytes::streaming::tag(b"NEXT TX after(s):"),
-            bytes::streaming::take_while(character::is_digit),
+    #[named]
+    pub(crate) fn parse_qmt_conn(buf: &[u8]) -> Result<URCMessages, ParseError> {
+        debug!("start parse qmt conn");
+        let (_, (_, id, _, res, _, ret)) = sequence::tuple((
+            bytes::complete::tag("+QMTCONN: "),
+            combinator::map_parser(
+                bytes::complete::take_while(character::is_digit),
+                character::complete::u16,
+            ),
+            bytes::streaming::tag(","),
+            combinator::map_parser(
+                bytes::complete::take_while(character::is_digit),
+                character::complete::u8,
+            ),
+            bytes::streaming::tag(","),
+            combinator::map_parser(
+                bytes::complete::take_while(character::is_digit),
+                character::complete::u8,
+            ),
         ))(buf)?;
-        let seconds = core::str::from_utf8(seconds)
-            .map_err(|_e| {
-                #[cfg(feature = "debug")]
-                error!("Failed to parse next tx seconds, {:?}", LossyStr(seconds));
-                ParseError::NoMatch
-            })?
-            .parse::<u16>()
-            .map_err(|_| {
-                #[cfg(feature = "debug")]
-                error!("Failed to parse next tx seconds from string");
-                ParseError::NoMatch
-            })?;
-        Ok(URCMessages::NextTxInSeconds(seconds))
+        let urc = URCMessages::QmtConn {
+            client_idx: id,
+            result: res,
+            ret_code: ret,
+        };
+        debug!("{:?}", urc);
+        Ok(urc)
+    }
+
+    #[named]
+    pub(crate) fn parse_qmt_pubex(buf: &[u8]) -> Result<URCMessages, ParseError> {
+        debug!("start parse qmt pubex");
+        let (_, (_, id, _, res, _, ret)) = sequence::tuple((
+            bytes::complete::tag("+QMTPUBEX: "),
+            combinator::map_parser(
+                bytes::complete::take_while(character::is_digit),
+                character::complete::u16,
+            ),
+            bytes::streaming::tag(","),
+            combinator::map_parser(
+                bytes::complete::take_while(character::is_digit),
+                character::complete::u8,
+            ),
+            bytes::streaming::tag(","),
+            combinator::map_parser(
+                bytes::complete::take_while(character::is_digit),
+                character::complete::u8,
+            ),
+        ))(buf)?;
+        let urc = URCMessages::QmtPubex {
+            client_idx: id,
+            result: res,
+            ret_code: ret,
+        };
+        debug!("{:?}", urc);
+        Ok(urc)
+    }
+
+    #[named]
+    pub(crate) fn parse_cerg(buf: &[u8]) -> Result<URCMessages, ParseError> {
+        debug!("start parse");
+        //+CREG: 1,\"287E\",\"F3BD34D\",7
+        let (_, (_, stat, _, lac, _, ci, _, act)) = sequence::tuple((
+            bytes::complete::tag("+CREG: "),
+            combinator::map_parser(
+                bytes::complete::take_while(character::is_digit),
+                character::complete::u8,
+            ),
+            bytes::complete::take(2 as usize),
+            bytes::complete::take_while(character::is_hex_digit),
+            bytes::complete::take(3 as usize),
+            bytes::complete::take_while(character::is_hex_digit),
+            bytes::complete::take(2 as usize),
+            combinator::map_parser(
+                bytes::complete::take_while(character::is_digit),
+                character::complete::u8,
+            ),
+        ))(buf)?;
+
+        let lac = core::str::from_utf8(lac).map_err(|_e| {
+            #[cfg(feature = "debug")]
+            error!("Failed to parse lac, {:?}", LossyStr(lac));
+            ParseError::NoMatch
+        })?;
+        let lac = u16::from_str_radix(lac, 16).map_err(|_e| {
+            #[cfg(feature = "debug")]
+            error!("Failed to parse lac from str");
+            ParseError::NoMatch
+        })?;
+
+        let ci = core::str::from_utf8(ci).map_err(|_e| {
+            #[cfg(feature = "debug")]
+            error!("Failed to parse ci, {:?}", LossyStr(ci));
+            ParseError::NoMatch
+        })?;
+        let ci = u32::from_str_radix(ci, 16).map_err(|_e| {
+            #[cfg(feature = "debug")]
+            error!("Failed to parse ci from str");
+            ParseError::NoMatch
+        })?;
+
+        let urc = URCMessages::CREG { stat, lac, ci, act };
+        debug!("{:?}", urc);
+        Ok(urc)
     }
 }
 
 impl AtatUrc for URCMessages {
     type Response = Self;
-
     fn parse(resp: &[u8]) -> Option<Self::Response> {
         match resp {
-            b"SYSTEM START" => Some(SystemStart),
-            b if b.starts_with(b"SOFT VERSION:") => URCMessages::parse_software_version(resp).ok(),
-            b if b.starts_with(b"NEXT TX after(s):") => URCMessages::parse_next_tx(resp).ok(),
+            b if b.starts_with(b"+QMTOPEN") => URCMessages::parse_qmt_open(resp).ok(),
+            b if b.starts_with(b"+QMTCONN") => URCMessages::parse_qmt_conn(resp).ok(),
+            b if b.starts_with(b"+CREG") => URCMessages::parse_cerg(resp).ok(),
+            b if b.starts_with(b"+QMTPUBEX") => URCMessages::parse_qmt_pubex(resp).ok(),
             _ => None,
         }
     }
 }
 
 impl Parser for URCMessages {
+    #[named]
     fn parse(buf: &[u8]) -> Result<(&[u8], usize), ParseError> {
         let (_reminder, (head, data, tail)) = branch::alt((
-            // System start
+            // URC
             sequence::tuple((
-                bytes::streaming::tag("====================="),
-                bytes::streaming::tag("SYSTEM START"),
-                bytes::streaming::tag("=====================\r\n\r\n"),
+                bytes::streaming::tag(b"\r\n+QIND: "),
+                bytes::streaming::take_till(|c| c == b'\r'),
+                bytes::streaming::tag(b"\r\n"),
             )),
-            // Software version
             sequence::tuple((
-                bytes::streaming::tag("==================="),
+                bytes::streaming::tag("\r\n"),
                 combinator::recognize(sequence::tuple((
-                    bytes::streaming::tag("SOFT VERSION:"),
-                    bytes::streaming::take_while(character::is_digit),
-                    bytes::streaming::tag("."),
-                    bytes::streaming::take_while(character::is_digit),
-                    bytes::streaming::tag("."),
-                    bytes::streaming::take_while(character::is_digit),
+                    bytes::streaming::tag("+QMTOPEN: "),
+                    bytes::streaming::take_till(|f| f == b','),
+                    bytes::streaming::tag(","),
+                    bytes::streaming::take_till(|f| f == b'\r'),
                 ))),
-                bytes::streaming::tag("==============\r\n\r\n"),
+                bytes::streaming::tag("\r\n"),
             )),
-            // Lora version
             sequence::tuple((
-                bytes::streaming::tag("==================="),
+                bytes::streaming::tag("\r\n"),
                 combinator::recognize(sequence::tuple((
-                    bytes::streaming::tag("LORA VERSION:"),
-                    bytes::streaming::take_while(character::is_digit),
+                    bytes::streaming::tag("+QMTCONN: "),
+                    bytes::streaming::take_till(|f| f == b','),
+                    bytes::streaming::tag(","),
+                    bytes::streaming::take_till(|f| f == b','),
+                    bytes::streaming::tag(","),
+                    bytes::streaming::take_till(|f| f == b'\r'),
                 ))),
-                bytes::streaming::tag("===============\r\n\r\n"),
+                bytes::streaming::tag("\r\n"),
             )),
-            // Lora region
             sequence::tuple((
-                bytes::streaming::tag("==================="),
+                bytes::streaming::tag("\r\n"),
                 combinator::recognize(sequence::tuple((
-                    bytes::streaming::tag("LORA REGION:"),
-                    bytes::streaming::take_while(character::is_alphanumeric),
+                    bytes::streaming::tag("+QMTPUBEX: "),
+                    bytes::streaming::take_till(|f| f == b','),
+                    bytes::streaming::tag(","),
+                    bytes::streaming::take_till(|f| f == b','),
+                    bytes::streaming::tag(","),
+                    bytes::streaming::take_till(|f| f == b'\r'),
                 ))),
-                bytes::streaming::tag("==================\r\n"),
+                bytes::streaming::tag("\r\n"),
             )),
-            // Next TX
             sequence::tuple((
-                combinator::success(&b""[..]),
+                bytes::streaming::tag("\r\n"),
                 combinator::recognize(sequence::tuple((
-                    bytes::streaming::tag("NEXT TX after(s):"),
-                    bytes::streaming::take_while(character::is_digit),
+                    bytes::streaming::tag("+CREG: "),
+                    bytes::streaming::take_while(character::is_digit), //stat
+                    bytes::streaming::tag(","),
+                    bytes::streaming::take_till(|f| f == b','), //lac
+                    bytes::streaming::tag(","),
+                    bytes::streaming::take_till(|f| f == b','), //ci
+                    bytes::streaming::tag(","),
+                    bytes::streaming::take_while(character::is_digit), //act
                 ))),
                 bytes::streaming::tag("\r\n"),
             )),
         ))(buf)?;
+        #[cfg(feature = "debug")]
+        info!("Urc success ! [{:?}]", LossyStr(data));
         Ok((data, head.len() + data.len() + tail.len()))
     }
 }

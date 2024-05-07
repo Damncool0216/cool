@@ -5,7 +5,7 @@ pub mod types;
 #[cfg(feature = "async")]
 pub mod asynch {
     use super::super::client::asynch::Ec800mClient as Client;
-    use super::super::general::cmds::{AtW, AteSet, VerifyAT};
+    use super::cmds::*;
     use atat::asynch::AtatClient;
     use atat::Error;
     use embedded_io_async::Write;
@@ -30,6 +30,14 @@ pub mod asynch {
         pub async fn at_echo_set(&mut self, on_off: OnOff) -> Result<bool, Error> {
             let command = AteSet::new(on_off);
             let resp = self.client.send(&command).await?;
+            #[cfg(feature = "debug")]
+            debug!("{:?} resp", resp);
+            Ok(resp.is_ok())
+        }
+
+        pub async fn urc_port_config(&mut self) -> Result<bool, Error> {
+            let cmd = QUrcCfgPort::new();
+            let resp = self.client.send(&cmd).await?;
             #[cfg(feature = "debug")]
             debug!("{:?} resp", resp);
             Ok(resp.is_ok())

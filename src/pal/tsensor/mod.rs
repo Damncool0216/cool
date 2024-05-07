@@ -8,7 +8,7 @@ use hal::{i2c::I2C, peripherals::I2C0};
 use shtcx::sensor_class::Sht2Gen;
 use shtcx::{LowPower, Measurement, PowerMode, ShtCx};
 
-use crate::{mdebug, minfo, pal};
+use crate::{debug, info, pal};
 
 use super::{Msg, MsgQueue};
 
@@ -24,7 +24,7 @@ pub(super) async fn msg_req(msg: Msg) {
 #[named]
 async fn pal_tsensor_wakeup(sht: &mut Tsensor) {
     if let Ok(_) = sht.start_wakeup() {
-        mdebug!("wakeup");
+        debug!("wakeup");
     }
     embassy_time::Timer::after_micros(400).await;
 }
@@ -32,7 +32,7 @@ async fn pal_tsensor_wakeup(sht: &mut Tsensor) {
 #[named]
 fn pal_tsensor_sleep(sht: &mut Tsensor) {
     if let Ok(_) = sht.sleep() {
-        mdebug!("sleep");
+        debug!("sleep");
     }
 }
 
@@ -61,14 +61,14 @@ async fn pal_temp_humi_get(
 pub(super) async fn pal_tsensor_task(mut delay: delay::Delay, i2c: I2cClient<'static>) {
     let mut sht = shtcx::shtc3(i2c);
     pal_tsensor_wakeup(&mut sht).await;
-    mdebug!(
+    debug!(
         "device_id:{:?}, raw_id: {:?}",
         sht.device_identifier(),
         sht.raw_id_register()
     );
     loop {
         let msg = PAL_TSENSOR_TASK_QUEUE.receive().await;
-        minfo!("{:?}", msg);
+        info!("{:?}", msg);
         pal_tsensor_wakeup(&mut sht).await;
         match msg {
             Msg::TsensorGetReq => {

@@ -7,7 +7,7 @@ use hal::{
     Blocking,
 };
 
-use crate::{mdebug, pal};
+use crate::{debug, pal};
 
 mod adxl345;
 type I2cClient<'a> = embedded_hal_bus::i2c::CriticalSectionDevice<'a, I2C<'a, I2C0, Blocking>>;
@@ -31,7 +31,7 @@ pub(super) async fn pal_gsensor_task(
     }
     let mut gsensor = gsensor.unwrap();
 
-    mdebug!("device id:{:?}", gsensor.device_id());
+    debug!("device id:{:?}", gsensor.device_id());
     gsensor.set_data_format(0x0B).ok();
     gsensor.set_power_control(0x08).ok();
     gsensor.set_interrupt_map(IntMapMode::SINGLE_TAP_INT2).ok();
@@ -41,7 +41,7 @@ pub(super) async fn pal_gsensor_task(
     gsensor
         .set_tap_control(TapMode::X_ENABLE | TapMode::Y_ENABLE | TapMode::Z_ENABLE)
         .ok();
-    gsensor.set_tap(Tap::new(0x20, 0x10, 0x10, 0)).ok();
+    gsensor.set_tap(Tap::new(0x15, 0x10, 0x10, 0)).ok();
 
     gsensor
         .set_interrupt_control(IntControlMode::SINGLE_TAP_ENABLE)
