@@ -9,6 +9,8 @@ use crate::{
     pal::{self, Msg, MsgQueue},
 };
 
+use super::FmlDataProducer;
+
 static FML_TEMP_MSG_QUEUE: MsgQueue<10> = channel::Channel::new();
 
 #[inline]
@@ -50,23 +52,16 @@ pub(super) async fn msg_rpy(msg: Msg) {
 #[embassy_executor::task]
 #[allow(unused_macros)]
 #[named]
-pub(super) async fn fml_temp_msg_rpy_task(mut producer: FmlTempHumiProducer<'static>) {
+pub(super) async fn fml_temp_msg_rpy_task(mut producer: FmlDataProducer<'static, FmlTempHumiData>) {
     loop {
         let msg = FML_TEMP_MSG_QUEUE.receive().await;
         info!("{:?}", msg);
         match msg {
             Msg::TsensorGetRpy { temp, humi } => {
-                info!("temp:{} °C humi:{} %RH", temp, humi);
                 let data = FmlTempHumiData::new(1, temp, humi);
-                if producer.ready() {
-                    producer.enqueue(data).ok();
-                    info!(
-                        "enqueue temp humi: {}/{}",
-                        producer.len(),
-                        producer.capacity()
-                    );
-                    super::net::fml_net_mqtt_pub_req().await;
-                }
+                info!("temp humi enqueue!!!");
+                producer.enqueue(data).ok();
+                super::net::fml_net_mqtt_pub_req().await;
             }
             _ => {}
         }

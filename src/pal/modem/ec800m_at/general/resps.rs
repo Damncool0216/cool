@@ -1,4 +1,4 @@
-use atat::{atat_derive::AtatResp, Error};
+use atat::{atat_derive::AtatResp, heapless, Error};
 
 use heapless::String;
 use log::debug;

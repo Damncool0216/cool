@@ -1,9 +1,8 @@
-use super::super::general::{
-    resps::{NoResp, OkResp},
+use super::{super::general::{
+    resps::OkResp,
     types::OnOff,
-};
-use atat::atat_derive::AtatCmd;
-use heapless::String;
+}, resps::GpsLocResp};
+use atat::{atat_derive::AtatCmd, heapless::String};
 
 use super::{
     resps::NmeaResp,
@@ -179,7 +178,7 @@ impl QGpsDelSet {
 
 /// 2.3.3. AT+QGPS 打开 GNSS
 #[derive(Clone, Debug, AtatCmd)]
-#[at_cmd("+QGPS", OkResp, timeout_ms = 600)]
+#[at_cmd("+QGPS", OkResp, timeout_ms = 5000)]
 pub struct QGpsSet {
     on_off: u8,
 }
@@ -198,13 +197,13 @@ pub struct QGpsEndSet;
 
 /// 2.3.5. AT+QGPSLOC 获取定位信息
 #[derive(Clone, Debug, AtatCmd)]
-#[at_cmd("+QGPSLOC", NoResp)]
-pub struct QGpsLocGet {
+#[at_cmd("+QGPSLOC", GpsLocResp, timeout_ms = 5000, parse = GpsLocResp::parse)]
+pub struct QGpsLoc {
     mode: u8,
 }
-impl QGpsLocGet {
+impl QGpsLoc {
     pub fn default() -> Self {
-        Self { mode: 0 }
+        Self { mode: 2 }
     }
 }
 
@@ -261,7 +260,7 @@ mod tests {
 
     use super::{
         DeleteType, GnssConfig, QAgpsSet, QGpsCfgAutoGpsSet, QGpsCfgGnssConfigSet,
-        QGpsCfgOutPortSet, QGpsDelSet, QGpsEndSet, QGpsGet, QGpsLocGet, QGpsNmeaGet, QGpsSet,
+        QGpsCfgOutPortSet, QGpsDelSet, QGpsEndSet, QGpsGet, QGpsLoc, QGpsNmeaGet, QGpsSet,
     };
 
     #[test]
@@ -387,7 +386,7 @@ mod tests {
 
     #[test]
     fn gps_loc() {
-        let cmd = QGpsLocGet::default();
+        let cmd = QGpsLoc::default();
         let b = cmd.as_bytes();
         assert_eq!(b, b"AT+QGPSLOC=0\r\n");
     }

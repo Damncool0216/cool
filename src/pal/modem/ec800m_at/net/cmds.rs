@@ -1,6 +1,6 @@
 use crate::pal::modem::ec800m_at::general::resps::OkResp;
 use atat::atat_derive::{AtatCmd, AtatResp};
-use heapless::String;
+use atat::heapless::String;
 /// CopsResp
 #[derive(Debug, Clone, AtatResp, PartialEq)]
 pub struct CposResp {

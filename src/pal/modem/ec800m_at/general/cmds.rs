@@ -1,5 +1,4 @@
-use atat::atat_derive::AtatCmd;
-use heapless::String;
+use atat::{atat_derive::AtatCmd, heapless::String};
 
 use super::{
     resps::{OkResp, OnOffResp},

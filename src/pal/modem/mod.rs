@@ -8,6 +8,7 @@ use embassy_sync::{
     mutex::Mutex,
     pubsub::{Subscriber, WaitResult},
 };
+use embassy_time::Duration;
 use function_name::named;
 use hal::{
     peripherals::UART1,
@@ -20,7 +21,7 @@ use static_cell::StaticCell;
 
 use crate::{
     debug,
-    fml::storage::*,
+    fml::{net::fml_net_send_dequeue, storage::*},
     info,
     pal::{
         self,
@@ -45,7 +46,7 @@ type AtClient<'a> = Ec800mClient<'a, AtWriter<'a>, INGRESS_BUF_SIZE>;
 
 static RES_SLOT: ResponseSlot<INGRESS_BUF_SIZE> = ResponseSlot::new();
 
-static PAL_MODEM_TASK_QUEUE: MsgQueue<30> = channel::Channel::new();
+static PAL_MODEM_TASK_QUEUE: MsgQueue<50> = channel::Channel::new();
 
 #[inline]
 pub(super) async fn msg_req(msg: Msg) {
@@ -56,23 +57,18 @@ pub(super) async fn msg_req(msg: Msg) {
 #[allow(unused_macros)]
 #[named]
 pub(super) async fn pal_at_client_task(writer: AtWriter<'static>) {
+    // static NMEAPARSER: StaticCell<Nmea> = StaticCell::new();
+    // let nmea_parser = NMEAPARSER
+    //     .init(Nmea::create_for_navigation(&[SentenceType::RMC, SentenceType::GGA]).unwrap());
     static BUF: StaticCell<[u8; 1024]> = StaticCell::new();
-    let client = atat::asynch::Client::new(
-        writer,
-        &RES_SLOT,
-        BUF.init([0; 1024]),
-        atat::Config::default(),
-    );
+    let mut config = atat::Config::default();
+    config = config.flush_timeout(Duration::from_millis(500));
+    let client = atat::asynch::Client::new(writer, &RES_SLOT, BUF.init([0; 1024]), config);
     let mut at_client = AtClient::new(client).await.unwrap();
-    // let topic = String::try_from("$sys/7Z4GCgffn6/damn/dp/post/json").unwrap();
-    // let data = String::try_from("{\"id\":1,\"dp\":{\"temp\":[{\"v\":38.1}]}}").unwrap();
-    // while let Err(_) =  at_client.mqtt_publish(MqttClientIdx::IDX1, 0, MqttQos::Qos0, 0, topic.clone(), data.clone()).await {
-    //     debug!("mqtt!");
-    // }
-
     while let Err(_) = at_client.verify_com_is_working().await {
         debug!("At baudrate adapting!");
     }
+
     debug!("At client init ok!");
     at_client.at_echo_set(OnOff::Off).await.ok();
     at_client.urc_port_config().await.ok();
@@ -84,11 +80,18 @@ pub(super) async fn pal_at_client_task(writer: AtWriter<'static>) {
         let msg = PAL_MODEM_TASK_QUEUE.receive().await;
         info!("{:?}", msg);
         match msg {
+            Msg::ModemInitReq => {
+                at_client.at_echo_set(OnOff::Off).await.ok();
+                at_client.urc_port_config().await.ok();
+                at_client.creg_set(2).await.ok();
+                at_client.mqtt_close(MqttClientIdx::IDX1).await.ok();
+                at_client.at_config_save().await.ok();
+                at_client.gps_set_sw(OnOff::Off).await.ok();
+            }
             Msg::GnssOpenReq => {
-                pal::msg_rpy(Msg::GnssOpenRpy(
-                    at_client.gps_set_sw(OnOff::On).await.is_ok(),
-                ))
-                .await
+                let res = at_client.gps_set_sw(OnOff::On).await;
+                info!("gnss open: {:?}", res);
+                pal::msg_rpy(Msg::GnssOpenRpy(res.is_ok())).await
             }
             Msg::GnssCloseReq => {
                 pal::msg_rpy(Msg::GnssCloseRpy(
@@ -97,7 +100,22 @@ pub(super) async fn pal_at_client_task(writer: AtWriter<'static>) {
                 .await
             }
             Msg::GnssGetLocationReq => {
-                at_client.gps_get_location().await.ok();
+                if let Ok(s) = at_client.gps_get_location().await {
+                    pal::msg_rpy(Msg::GnssGetLoactionRpy(Some(FmlGnssRawData {
+                        latitude: s.latitude,
+                        longitude: s.longitude,
+                        hdop: s.hdop,
+                        altitude: s.altitude,
+                        fix: s.fix,
+                        cog: s.cog,
+                        spkm: s.spkm,
+                        spkn: s.spkn,
+                        nsat: s.nsat,
+                    })))
+                    .await
+                } else {
+                    pal::msg_rpy(Msg::GnssGetLoactionRpy(None)).await
+                }
             }
             Msg::NetAttachStatReq(s) => {
                 if let Some(n) = s {
@@ -159,37 +177,29 @@ pub(super) async fn pal_at_client_task(writer: AtWriter<'static>) {
                 }
             }
             Msg::MqttPubReq => {
-                // let topic = String::try_from("$sys/7Z4GCgffn6/damn/dp/post/json").unwrap();
-                // let data = String::try_from("{\"id\":1,\"dp\":{\"temp\":[{\"v\":37.1}]}}").unwrap();
-                // if let Err(e) = at_client
-                //     .mqtt_publish(MqttClientIdx::IDX1, 0, MqttQos::Qos0, 0, topic, data)
-                //     .await
-                // {
-                //     debug!("{:?}", e);
-                //     embassy_time::Timer::after_secs(60).await;
-                //     pal::msg_req(Msg::MqttPubReq).await;
-                // }
                 let mut topic = String::new();
-                let mut data = String::new();
                 if let Some(fml_net_nvm) = &*FML_NET_NVM.lock().await {
                     topic = fml_net_nvm.dp_topic.clone();
-                    if let Some(s) = &fml_net_nvm.send_type {
-                        match s {
-                            FmlNetSendType::TempHumi(t) => {
-                                data = serde_json_core::ser::to_string::<FmlTempHumiData, 512>(&t)
-                                    .unwrap()
-                                    .clone();
-                            }
-                            _ => {
-                                continue;
-                            }
+                }
+                if let Some(s) = fml_net_send_dequeue() {
+                    let data;
+                    match s {
+                        FmlNetSendType::TempHumi(t) => {
+                            data = serde_json_core::ser::to_string::<FmlTempHumiData, 512>(&t)
+                                .unwrap()
+                                .clone();
+                        }
+                        FmlNetSendType::Location(l) => {
+                            data = serde_json_core::to_string::<FmlGnssData, 512>(&l)
+                                .unwrap()
+                                .clone();
                         }
                     }
+                    at_client
+                        .mqtt_publish(MqttClientIdx::IDX1, 0, MqttQos::Qos0, 0, topic, data)
+                        .await
+                        .ok();
                 }
-                at_client
-                    .mqtt_publish(MqttClientIdx::IDX1, 0, MqttQos::Qos0, 0, topic, data)
-                    .await
-                    .ok();
             }
             _ => {}
         }
@@ -216,7 +226,7 @@ pub(crate) async fn pal_at_urc_task() {
         if init {
             break;
         } else {
-            embassy_time::Timer::after_secs(5).await;
+            embassy_time::Timer::after_millis(20).await;
         }
     }
     info!("start");
@@ -256,6 +266,10 @@ pub(crate) async fn pal_at_urc_task() {
                     ret_code: _,
                 } => {
                     pal::msg_rpy(Msg::MqttPubRpy(result == 0)).await;
+                }
+                MsgUrc::RDY => {
+                    pal::msg_req(Msg::ModemInitReq).await;
+                    pal::msg_rpy(Msg::ModemReady).await;
                 }
                 _ => {}
             },

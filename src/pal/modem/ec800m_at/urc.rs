@@ -5,9 +5,10 @@
 
 #[cfg(feature = "debug")]
 use crate::{debug, info};
-use atat::digest::ParseError;
+use atat::digest::parser;
 #[cfg(feature = "debug")]
 use atat::helpers::LossyStr;
+use atat::{digest::ParseError, nom::FindSubstring};
 use atat::{
     nom::{branch, bytes, character, combinator, sequence},
     AtatUrc, Parser,
@@ -41,7 +42,14 @@ pub enum URCMessages {
         ci: u32,
         act: u8,
     },
+    Agps {
+        valid: bool,
+    },
+    Gnss {
+        update: bool,
+    },
     QmtStat,
+    RDY,
 }
 
 impl URCMessages {
@@ -71,21 +79,27 @@ impl URCMessages {
     #[named]
     pub(crate) fn parse_qmt_conn(buf: &[u8]) -> Result<URCMessages, ParseError> {
         debug!("start parse qmt conn");
-        let (_, (_, id, _, res, _, ret)) = sequence::tuple((
-            bytes::complete::tag("+QMTCONN: "),
-            combinator::map_parser(
-                bytes::complete::take_while(character::is_digit),
-                character::complete::u16,
+        let (_, (id, res, ret)) = sequence::tuple((
+            sequence::preceded(
+                bytes::complete::tag("+QMTCONN: "),
+                combinator::map_parser(
+                    bytes::complete::take_while(character::is_digit),
+                    character::complete::u16,
+                ),
             ),
-            bytes::streaming::tag(","),
-            combinator::map_parser(
-                bytes::complete::take_while(character::is_digit),
-                character::complete::u8,
+            sequence::preceded(
+                bytes::complete::tag(","),
+                combinator::map_parser(
+                    bytes::complete::take_while(character::is_digit),
+                    character::complete::u8,
+                ),
             ),
-            bytes::streaming::tag(","),
-            combinator::map_parser(
-                bytes::complete::take_while(character::is_digit),
-                character::complete::u8,
+            sequence::preceded(
+                bytes::complete::tag(","),
+                combinator::map_parser(
+                    bytes::complete::take_while(character::is_digit),
+                    character::complete::u8,
+                ),
             ),
         ))(buf)?;
         let urc = URCMessages::QmtConn {
@@ -100,21 +114,27 @@ impl URCMessages {
     #[named]
     pub(crate) fn parse_qmt_pubex(buf: &[u8]) -> Result<URCMessages, ParseError> {
         debug!("start parse qmt pubex");
-        let (_, (_, id, _, res, _, ret)) = sequence::tuple((
-            bytes::complete::tag("+QMTPUBEX: "),
-            combinator::map_parser(
-                bytes::complete::take_while(character::is_digit),
-                character::complete::u16,
+        let (_, (id, res, ret)) = sequence::tuple((
+            sequence::preceded(
+                bytes::complete::tag("+QMTPUBEX: "),
+                combinator::map_parser(
+                    bytes::complete::take_while(character::is_digit),
+                    character::complete::u16,
+                ),
             ),
-            bytes::streaming::tag(","),
-            combinator::map_parser(
-                bytes::complete::take_while(character::is_digit),
-                character::complete::u8,
+            sequence::preceded(
+                bytes::streaming::tag(","),
+                combinator::map_parser(
+                    bytes::complete::take_while(character::is_digit),
+                    character::complete::u8,
+                ),
             ),
-            bytes::streaming::tag(","),
-            combinator::map_parser(
-                bytes::complete::take_while(character::is_digit),
-                character::complete::u8,
+            sequence::preceded(
+                bytes::streaming::tag(","),
+                combinator::map_parser(
+                    bytes::complete::take_while(character::is_digit),
+                    character::complete::u8,
+                ),
             ),
         ))(buf)?;
         let urc = URCMessages::QmtPubex {
@@ -129,47 +149,82 @@ impl URCMessages {
     #[named]
     pub(crate) fn parse_cerg(buf: &[u8]) -> Result<URCMessages, ParseError> {
         debug!("start parse");
-        //+CREG: 1,\"287E\",\"F3BD34D\",7
-        let (_, (_, stat, _, lac, _, ci, _, act)) = sequence::tuple((
-            bytes::complete::tag("+CREG: "),
-            combinator::map_parser(
-                bytes::complete::take_while(character::is_digit),
-                character::complete::u8,
+        let byte_to_str = |st| {
+            core::str::from_utf8(st).map_err(|_e| {
+                #[cfg(feature = "debug")]
+                error!("Failed to parse byte to str, {:?}", st);
+                ParseError::NoMatch
+            })
+        };
+        let hex_str_to_u32 = |st| {
+            u32::from_str_radix(byte_to_str(st)?, 16).map_err(|_e| {
+                #[cfg(feature = "debug")]
+                error!("Failed to parse num from str: {:?}", st);
+                ParseError::NoMatch
+            })
+        };
+        let (_, (a, b, lac, ci, act)) = sequence::tuple((
+            sequence::preceded(
+                bytes::complete::tag("+CREG: "),
+                combinator::map_parser(
+                    bytes::complete::take_while(character::is_digit),
+                    character::complete::u8,
+                ),
             ),
-            bytes::complete::take(2 as usize),
-            bytes::complete::take_while(character::is_hex_digit),
-            bytes::complete::take(3 as usize),
-            bytes::complete::take_while(character::is_hex_digit),
-            bytes::complete::take(2 as usize),
+            branch::alt((
+                combinator::map_parser(
+                    sequence::preceded(
+                        bytes::complete::tag(","),
+                        bytes::complete::take_while(character::is_digit),
+                    ),
+                    character::complete::i8,
+                ),
+                combinator::success(-1),
+            )),
+            sequence::delimited(
+                bytes::complete::tag(",\""),
+                bytes::complete::take_while(character::is_hex_digit),
+                bytes::complete::tag("\","),
+            ),
+            sequence::delimited(
+                bytes::complete::tag("\""),
+                bytes::complete::take_while(character::is_hex_digit),
+                bytes::complete::tag("\","),
+            ),
             combinator::map_parser(
                 bytes::complete::take_while(character::is_digit),
                 character::complete::u8,
             ),
         ))(buf)?;
 
-        let lac = core::str::from_utf8(lac).map_err(|_e| {
-            #[cfg(feature = "debug")]
-            error!("Failed to parse lac, {:?}", LossyStr(lac));
-            ParseError::NoMatch
-        })?;
-        let lac = u16::from_str_radix(lac, 16).map_err(|_e| {
-            #[cfg(feature = "debug")]
-            error!("Failed to parse lac from str");
-            ParseError::NoMatch
-        })?;
+        let lac = hex_str_to_u32(lac)?;
+        let ci = hex_str_to_u32(ci)?;
 
-        let ci = core::str::from_utf8(ci).map_err(|_e| {
-            #[cfg(feature = "debug")]
-            error!("Failed to parse ci, {:?}", LossyStr(ci));
-            ParseError::NoMatch
-        })?;
-        let ci = u32::from_str_radix(ci, 16).map_err(|_e| {
-            #[cfg(feature = "debug")]
-            error!("Failed to parse ci from str");
-            ParseError::NoMatch
-        })?;
+        let urc = URCMessages::CREG {
+            stat: if b == -1 { a } else { b as u8 },
+            lac: lac as u16,
+            ci,
+            act,
+        };
+        debug!("{:?}", urc);
+        Ok(urc)
+    }
+    #[named]
+    pub(crate) fn parse_gnss_update(buf: &[u8]) -> Result<URCMessages, ParseError> {
+        debug!("start parse");
+        //GNSS Update successed!!!!
+        let update = buf.find_substring("Update successed").is_some();
+        let urc = URCMessages::Gnss { update };
+        debug!("{:?}", urc);
+        Ok(urc)
+    }
 
-        let urc = URCMessages::CREG { stat, lac, ci, act };
+    #[named]
+    pub(crate) fn parse_agps_check(buf: &[u8]) -> Result<URCMessages, ParseError> {
+        debug!("start parse");
+        //AGPS Check Vailed!!!!
+        let valid: bool = buf.find_substring("Check Vailed").is_some();
+        let urc = URCMessages::Agps { valid };
         debug!("{:?}", urc);
         Ok(urc)
     }
@@ -183,6 +238,9 @@ impl AtatUrc for URCMessages {
             b if b.starts_with(b"+QMTCONN") => URCMessages::parse_qmt_conn(resp).ok(),
             b if b.starts_with(b"+CREG") => URCMessages::parse_cerg(resp).ok(),
             b if b.starts_with(b"+QMTPUBEX") => URCMessages::parse_qmt_pubex(resp).ok(),
+            b if b.starts_with(b"GNSS") => URCMessages::parse_gnss_update(resp).ok(),
+            b if b.starts_with(b"AGPS") => URCMessages::parse_agps_check(resp).ok(),
+            b if b.starts_with(b"RDY") => Some(URCMessages::RDY),
             _ => None,
         }
     }
@@ -191,64 +249,33 @@ impl AtatUrc for URCMessages {
 impl Parser for URCMessages {
     #[named]
     fn parse(buf: &[u8]) -> Result<(&[u8], usize), ParseError> {
-        let (_reminder, (head, data, tail)) = branch::alt((
-            // URC
-            sequence::tuple((
-                bytes::streaming::tag(b"\r\n+QIND: "),
-                bytes::streaming::take_till(|c| c == b'\r'),
-                bytes::streaming::tag(b"\r\n"),
+        let (_reminder, (data, len)) = branch::alt((
+            branch::alt((parser::urc_helper("RDY"),)),
+            branch::alt((
+                parser::urc_helper("+CFUN"),
+                parser::urc_helper("+CPIN"),
+                parser::urc_helper("+CREG"),
+                parser::urc_helper("+CGREG"),
+                parser::urc_helper("+CTZV"),
+                parser::urc_helper("+CTZE"),
             )),
-            sequence::tuple((
-                bytes::streaming::tag("\r\n"),
-                combinator::recognize(sequence::tuple((
-                    bytes::streaming::tag("+QMTOPEN: "),
-                    bytes::streaming::take_till(|f| f == b','),
-                    bytes::streaming::tag(","),
-                    bytes::streaming::take_till(|f| f == b'\r'),
-                ))),
-                bytes::streaming::tag("\r\n"),
+            parser::urc_helper("+QIND"),
+            parser::urc_helper("+QUSIM"),
+            branch::alt((
+                parser::urc_helper("+QMTOPEN"),
+                parser::urc_helper("+QMTCONN"),
+                parser::urc_helper("+QMTPUBEX"),
+                parser::urc_helper("+QMTSTAT"),
+                parser::urc_helper("+QMTRECV"),
+                parser::urc_helper("+QMTPING"),
             )),
-            sequence::tuple((
-                bytes::streaming::tag("\r\n"),
-                combinator::recognize(sequence::tuple((
-                    bytes::streaming::tag("+QMTCONN: "),
-                    bytes::streaming::take_till(|f| f == b','),
-                    bytes::streaming::tag(","),
-                    bytes::streaming::take_till(|f| f == b','),
-                    bytes::streaming::tag(","),
-                    bytes::streaming::take_till(|f| f == b'\r'),
-                ))),
-                bytes::streaming::tag("\r\n"),
-            )),
-            sequence::tuple((
-                bytes::streaming::tag("\r\n"),
-                combinator::recognize(sequence::tuple((
-                    bytes::streaming::tag("+QMTPUBEX: "),
-                    bytes::streaming::take_till(|f| f == b','),
-                    bytes::streaming::tag(","),
-                    bytes::streaming::take_till(|f| f == b','),
-                    bytes::streaming::tag(","),
-                    bytes::streaming::take_till(|f| f == b'\r'),
-                ))),
-                bytes::streaming::tag("\r\n"),
-            )),
-            sequence::tuple((
-                bytes::streaming::tag("\r\n"),
-                combinator::recognize(sequence::tuple((
-                    bytes::streaming::tag("+CREG: "),
-                    bytes::streaming::take_while(character::is_digit), //stat
-                    bytes::streaming::tag(","),
-                    bytes::streaming::take_till(|f| f == b','), //lac
-                    bytes::streaming::tag(","),
-                    bytes::streaming::take_till(|f| f == b','), //ci
-                    bytes::streaming::tag(","),
-                    bytes::streaming::take_while(character::is_digit), //act
-                ))),
-                bytes::streaming::tag("\r\n"),
+            branch::alt((
+                parser::urc_helper("GNSS Update successed!!!!"),
+                parser::urc_helper("AGPS Check Vailed!!!!"),
             )),
         ))(buf)?;
         #[cfg(feature = "debug")]
-        info!("Urc success ! [{:?}]", LossyStr(data));
-        Ok((data, head.len() + data.len() + tail.len()))
+        info!("Urc success! [{:?}]", LossyStr(data));
+        Ok((data, len))
     }
 }

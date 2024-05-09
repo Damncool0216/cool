@@ -1,8 +1,7 @@
-use crate::pal::modem::ec800m_at::general::resps::{NoResp, SendResp};
+use crate::pal::modem::ec800m_at::general::resps::SendResp;
 
 use super::super::general::resps::OkResp;
-use atat::atat_derive::{AtatCmd, AtatResp};
-use heapless::String;
+use atat::{atat_derive::{AtatCmd, AtatResp}, heapless::String};
 
 use super::types::{
     MqttCleanSession, MqttClientIdx, MqttEditMode, MqttPdPCid, MqttQos, MqttRecvLen, MqttRecvMode,
@@ -654,7 +653,7 @@ impl<'a> QMtUnsSet<'a> {
 #[derive(Clone, Debug, AtatCmd)]
 #[at_cmd(
     "",
-    NoResp,
+    OkResp,
     cmd_prefix = "",
     timeout_ms = 10000,
     quote_escape_strings = false,
@@ -667,7 +666,7 @@ pub struct SendData<'a> {
 
 /// 3.3.8. AT+QMTPUBEX 发布消息
 #[derive(Clone, Debug, AtatCmd)]
-#[at_cmd("+QMTPUBEX", SendResp, timeout_ms = 15000, parse = SendResp::parse)]
+#[at_cmd("+QMTPUBEX", SendResp, timeout_ms = 600, parse = SendResp::parse)]
 pub struct QMtPubEx<'a> {
     #[at_arg(position = 1)]
     client_idx: u8,

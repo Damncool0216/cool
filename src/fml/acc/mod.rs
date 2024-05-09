@@ -12,15 +12,16 @@ static FML_ACC_MSG_QUEUE: MsgQueue<10> = channel::Channel::new();
 static ACC_STATUS: AtomicU8 = AtomicU8::new(0);
 
 #[named]
-fn fml_acc_status_set(new_status: FmlAccStatus) {
+async fn fml_acc_status_set(new_status: FmlAccStatus) {
     if fml_acc_status_get() == new_status {
         return;
     }
     ACC_STATUS.store(new_status as u8, Ordering::Relaxed);
-    if new_status != FmlAccStatus::Off {
-        info!("static to sport");
+    info!("acc status: {:?}", new_status);
+    if new_status == FmlAccStatus::On {
+        super::gnss::fml_gnss_on_req().await
     } else {
-        info!("sport to static");
+        super::gnss::fml_gnss_off_req().await
     }
 }
 
@@ -51,7 +52,8 @@ pub(super) async fn fml_acc_msg_rpy_task() {
                 msg = Some(s);
             } else {
                 if last_vib_time.elapsed() > embassy_time::Duration::from_secs(3 * 60) {
-                    fml_acc_status_set(FmlAccStatus::Off);
+                    vib_cnt = 0;
+                    fml_acc_status_set(FmlAccStatus::Off).await;
                 }
                 embassy_time::Timer::after_secs(5).await;
                 continue;
@@ -68,8 +70,9 @@ pub(super) async fn fml_acc_msg_rpy_task() {
                 }
                 if vib_cnt < 3 {
                     vib_cnt = vib_cnt + 1;
-                } else {
-                    fml_acc_status_set(FmlAccStatus::On);
+                } 
+                if vib_cnt == 3 {
+                    fml_acc_status_set(FmlAccStatus::On).await;
                 }
                 last_vib_time = embassy_time::Instant::now();
                 info!("vib_time:{}, vib cnt:{}", last_vib_time, vib_cnt);

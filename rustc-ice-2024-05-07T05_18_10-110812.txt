@@ -1,0 +1,66 @@
+thread 'rustc' panicked at compiler\rustc_const_eval\src\interpret\validity.rs:733:21:
+assertion `left == right` failed
+  left: Mut
+ right: Not
+stack backtrace:
+   0:     0x7fff5dc8d553 - std::backtrace_rs::backtrace::dbghelp64::trace
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\std\src\..\..\backtrace\src\backtrace\dbghelp64.rs:91
+   1:     0x7fff5dc8d553 - std::backtrace_rs::backtrace::trace_unsynchronized
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\std\src\..\..\backtrace\src\backtrace\mod.rs:66
+   2:     0x7fff5dc8d553 - std::backtrace::Backtrace::create
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\std\src\backtrace.rs:331
+   3:     0x7fff5dc8d49a - std::backtrace::Backtrace::force_capture
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\std\src\backtrace.rs:312
+   4:     0x7fff1e2b07f0 - __longjmp_internal
+   5:     0x7fff5dca7017 - alloc::boxed::impl$50::call
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\alloc\src\boxed.rs:2036
+   6:     0x7fff5dca7017 - std::panicking::rust_panic_with_hook
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\std\src\panicking.rs:799
+   7:     0x7fff5dca6ea7 - std::panicking::begin_panic_handler::closure$0
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\std\src\panicking.rs:664
+   8:     0x7fff5dca441f - std::sys_common::backtrace::__rust_end_short_backtrace<std::panicking::begin_panic_handler::closure_env$0,never$>
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\std\src\sys_common\backtrace.rs:171
+   9:     0x7fff5dca6b58 - std::panicking::begin_panic_handler
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\std\src\panicking.rs:652
+  10:     0x7fff5dcfd4e4 - core::panicking::panic_fmt
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\core\src\panicking.rs:72
+  11:     0x7fff5dcfd931 - core::panicking::assert_failed_inner
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\core\src\panicking.rs:408
+  12:     0x7fff1edc30c7 - <unicode_script[8be3e62f1d8a4294]::ScriptIterator as core[805fd5fce8f1d11e]::iter::traits::iterator::Iterator>::next
+  13:     0x7fff1daa6b08 - <rustc_const_eval[97945a17c4471612]::interpret::eval_context::InterpCx<_>>::storage_live_dyn::is_very_trivially_sized
+  14:     0x7fff1daa714e - <rustc_const_eval[97945a17c4471612]::interpret::eval_context::InterpCx<_>>::storage_live_dyn::is_very_trivially_sized
+  15:     0x7fff1daa7023 - <rustc_const_eval[97945a17c4471612]::interpret::eval_context::InterpCx<_>>::storage_live_dyn::is_very_trivially_sized
+  16:     0x7fff1cb9916f - rustc_const_eval[97945a17c4471612]::interpret::eval_context::mir_assign_valid_types
+  17:     0x7fff1db0bfb1 - rustc_const_eval[97945a17c4471612]::util::compare_types::relate_types
+  18:     0x7fff1cb9fc37 - rustc_const_eval[97945a17c4471612]::const_eval::eval_queries::eval_static_initializer_provider
+  19:     0x7fff1cafdc58 - <dyn std[4accb42dbd878393]::io::Write as nu_ansi_term[f26df25c01d9b2e]::write::AnyWrite>::write_str
+  20:     0x7fff1cae572d - <dyn std[4accb42dbd878393]::io::Write as nu_ansi_term[f26df25c01d9b2e]::write::AnyWrite>::write_str
+  21:     0x7fff1d8058ea - rustc_ty_utils[3dfa3a1a9bf4e26c]::ty::self_ty_of_trait_impl_enabling_order_dep_trait_object_hack
+  22:     0x7fff1cb0fd6c - rustc_query_impl[16adde4ee0d4aa7d]::query_system
+  23:     0x7fff1d125472 - <rustc_hir_typeck[7e1ae237b4fc413f]::upvar::InferBorrowKind as rustc_hir_typeck[7e1ae237b4fc413f]::expr_use_visitor::Delegate>::borrow
+  24:     0x7fff1d19931e - rustc_hir_analysis[3195dc3c44b12ca4]::check_crate
+  25:     0x7fff1cf0ea12 - <rustc_interface[1b805f239f89006]::passes::LintStoreExpandImpl as rustc_expand[7178d8b5a76c05cd]::base::LintStoreExpand>::pre_expansion_lint
+  26:     0x7fff19f160b7 - rustc_interface[1b805f239f89006]::passes::create_global_ctxt
+  27:     0x7fff1cafe90a - <dyn std[4accb42dbd878393]::io::Write as nu_ansi_term[f26df25c01d9b2e]::write::AnyWrite>::write_str
+  28:     0x7fff1ca1e9b9 - rustc_ty_utils[3dfa3a1a9bf4e26c]::ty::adt_sized_constraint
+  29:     0x7fff1cb03e93 - rustc_query_impl[16adde4ee0d4aa7d]::query_system
+  30:     0x7fff19ed3cb9 - llvm::function_ref<void __cdecl(llvm::Value const * __ptr64)>::callback_fn<`llvm::Value::stripInBoundsOffsets'::`1'::<lambda_1_1> >
+  31:     0x7fff19ed0f1f - llvm::function_ref<void __cdecl(llvm::Value const * __ptr64)>::callback_fn<`llvm::Value::stripInBoundsOffsets'::`1'::<lambda_1_1> >
+  32:     0x7fff19ed8d49 - llvm::function_ref<void __cdecl(llvm::Value const * __ptr64)>::callback_fn<`llvm::Value::stripInBoundsOffsets'::`1'::<lambda_1_1> >
+  33:     0x7fff5dcb808d - alloc::boxed::impl$48::call_once
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\alloc\src\boxed.rs:2022
+  34:     0x7fff5dcb808d - alloc::boxed::impl$48::call_once
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\alloc\src\boxed.rs:2022
+  35:     0x7fff5dcb808d - std::sys::pal::windows::thread::impl$0::new::thread_start
+                               at /rustc/9c9b568792ef20d8459c745345dd3e79b7c7fa8c/library\std\src\sys\pal\windows\thread.rs:52
+  36:     0x7ff8105d257d - BaseThreadInitThunk
+  37:     0x7ff81140aa48 - RtlUserThreadStart
+
+
+rustc version: 1.80.0-nightly (9c9b56879 2024-05-05)
+platform: x86_64-pc-windows-msvc
+
+query stack during panic:
+#0 [eval_static_initializer] evaluating initializer of static `fml::gnss::FML_GNSS_STATUS`
+#1 [analysis] running analysis passes on this crate
+end of query stack

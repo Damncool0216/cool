@@ -9,6 +9,7 @@ use atat::{
     nom::{branch, bytes, combinator, sequence},
     DigestResult, Digester, Parser,
 };
+use log::error;
 
 use super::urc::URCMessages;
 
@@ -127,9 +128,11 @@ impl Digester for Ec800mDigester {
 
         // Generic error matches
         if let Ok((_, (result, len))) = parser::error_response(input) {
+            #[cfg(feature = "debug")]
+            error!("Generic error matches: {:?}", result);
             return (result, len);
         }
-
+        
         // No matches at all.
         incomplete
     }

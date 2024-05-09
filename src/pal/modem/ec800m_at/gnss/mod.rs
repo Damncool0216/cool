@@ -4,18 +4,21 @@ pub mod types;
 
 #[cfg(feature = "async")]
 pub mod asynch {
+    use crate::pal::modem::ec800m_at::gnss::resps::GpsLocResp;
+
     use super::super::client::asynch::Ec800mClient as Client;
     use super::super::general::types::OnOff;
     use super::super::gnss::cmds::QGpsSet;
     use super::cmds::{
         QAgpsSet, QGpsCfgApFlashSet, QGpsCfgAutoGpsSet, QGpsCfgGnssConfigSet,
         QGpsCfgGpsNmeaTypeSet, QGpsCfgNmeasrcSet, QGpsCfgOutPortSet, QGpsDelSet, QGpsEndSet,
-        QGpsLocGet, QGpsNmeaGet,
+        QGpsLoc, QGpsNmeaGet,
     };
     use super::types::{DeleteType, GnssConfig, NmeaConfig, NmeaType, NmeaVec, Outport};
     use atat::asynch::AtatClient;
     use atat::Error;
     use embedded_io_async::Write;
+    use log::debug;
 
     impl<'a, W: Write, const INGRESS_BUF_SIZE: usize> Client<'a, W, INGRESS_BUF_SIZE> {
         pub async fn gpscfg_set_outport(&mut self, port: Outport) -> Result<bool, Error> {
@@ -71,10 +74,11 @@ pub mod asynch {
             let resp = self.client.send(&cmd).await?;
             Ok(resp.is_ok())
         }
-        pub async fn gps_get_location(&mut self) -> Result<bool, Error> {
-            let cmd = QGpsLocGet::default();
-            let _resp = self.client.send(&cmd).await?;
-            Ok(true)
+        pub async fn gps_get_location(&mut self) -> Result<GpsLocResp, Error> {
+            let cmd = QGpsLoc::default();
+            let resp = self.client.send(&cmd).await?;
+            debug!("{:?}", resp);
+            Ok(resp)
         }
         pub async fn gps_get_nmea(&mut self, nmea_type: NmeaType) -> Result<NmeaVec, Error> {
             let cmd = QGpsNmeaGet::new(nmea_type);

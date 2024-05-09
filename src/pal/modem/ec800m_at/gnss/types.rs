@@ -1,3 +1,4 @@
+use atat::heapless;
 use heapless::{String, Vec};
 
 pub enum NmeaConfig {

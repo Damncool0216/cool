@@ -3,7 +3,7 @@ use core::cell::RefCell;
 use embassy_executor::Spawner;
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
-    channel::{self, Channel},
+    channel::Channel,
 };
 use hal::{
     clock::ClockControl,
@@ -16,6 +16,8 @@ use hal::{
     uart, Blocking,
 };
 use static_cell::StaticCell;
+
+use crate::fml::storage::FmlGnssRawData;
 
 pub mod gnss;
 pub mod gsensor;
@@ -35,6 +37,7 @@ pub(crate) enum Msg {
     GnssCloseReq,
     GnssCloseRpy(bool),
     GnssGetLocationReq,
+    GnssGetLoactionRpy(Option<FmlGnssRawData>),
     GnssMsgEnd,
 
     //net
@@ -64,6 +67,10 @@ pub(crate) enum Msg {
     MqttMsgEnd,
     //File
 
+    //Modem
+    ModemReady,
+    ModemInitReq,
+    
     //Tsensor
     TsensorMsgBegin,
     TsensorGetReq,
@@ -79,8 +86,6 @@ pub(crate) enum Msg {
     GsensorMsgEnd,
 }
 pub(crate) type MsgQueue<const N: usize> = Channel<CriticalSectionRawMutex, Msg, N>;
-
-static PAL_TASK_QUEUE: MsgQueue<30> = channel::Channel::new();
 
 static I2C_INIT: StaticCell<critical_section::Mutex<RefCell<I2C<'static, I2C0, Blocking>>>> =
     StaticCell::new();
@@ -147,8 +152,8 @@ pub(super) fn init(spawner: &Spawner) {
     let (writer, reader) = serial1.split();
 
     spawner.spawn(modem::pal_at_ingress_task(reader)).unwrap();
-    spawner.spawn(modem::pal_at_client_task(writer)).unwrap();
     spawner.spawn(modem::pal_at_urc_task()).unwrap();
+    spawner.spawn(modem::pal_at_client_task(writer)).unwrap();
 
     //init i2c tsensor
     let i2c = i2c::I2C::new(

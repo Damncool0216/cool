@@ -65,12 +65,14 @@ pub mod asynch {
         ) -> Result<bool, Error> {
             let cmd = QMtPubEx::new(client_idx, msgid, qos, retain, &topic, data.len() as u16);
             debug!("{:?}", cmd);
-            let resp = self.client.send(&cmd).await?;
-            debug!("{:?}", resp);
-            if resp.is_send_ready() {
-                self.send_data(&data).await
-            } else {
-                Ok(false)
+            let resp = self.client.send(&cmd).await;
+            match resp {
+                Err(Error::Timeout) => self.send_data(&data).await,
+                Ok(s) => {
+                    debug! {"{:?}", s};
+                    self.send_data(&data).await
+                }
+                _ => Ok(false),
             }
         }
 
@@ -79,7 +81,7 @@ pub mod asynch {
             debug!("{:?}", cmd);
             let resp = self.client.send(&cmd).await?;
             debug!("{:?}", resp);
-            Ok(true)
+            Ok(resp.is_ok())
         }
     }
 }
