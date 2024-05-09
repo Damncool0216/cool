@@ -1,10 +1,7 @@
 use core::cell::RefCell;
 
 use embassy_executor::Spawner;
-use embassy_sync::{
-    blocking_mutex::raw::CriticalSectionRawMutex,
-    channel::Channel,
-};
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
 use hal::{
     clock::ClockControl,
     delay, embassy,
@@ -19,6 +16,7 @@ use static_cell::StaticCell;
 
 use crate::fml::storage::FmlGnssRawData;
 
+pub mod flash;
 pub mod gnss;
 pub mod gsensor;
 pub mod modem;
@@ -70,7 +68,7 @@ pub(crate) enum Msg {
     //Modem
     ModemReady,
     ModemInitReq,
-    
+
     //Tsensor
     TsensorMsgBegin,
     TsensorGetReq,
