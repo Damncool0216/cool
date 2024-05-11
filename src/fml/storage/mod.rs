@@ -64,6 +64,9 @@ pub struct FmLNetNvm {
     pub mqtt_password: String<256>,
     pub dp_topic: String<50>,
     pub send_type: Option<FmlNetSendType>,
+    pub phone: Option<String<50>>,
+    pub temp_alarm_msg: Option<String<512>>,
+    pub humi_alarm_msg: Option<String<512>>,
 }
 
 impl FmLNetNvm {
@@ -88,6 +91,9 @@ impl FmLNetNvm {
             mqtt_password: String::try_from(env!("MQTT_PASSWORD")).unwrap(),
             dp_topic,
             send_type: None,
+            phone: Some(String::try_from(env!("ALARM_PHONE")).unwrap()),
+            temp_alarm_msg: None,
+            humi_alarm_msg: None,
         }
     }
 }
@@ -104,6 +110,11 @@ impl FmLNetNvm {
         }]
 }   }
 */
+pub enum FmlAlarmData {
+    Temp(f32),
+    Humi(f32),
+}
+
 #[derive(Serialize, Clone, Debug, Deserialize)]
 pub struct FmlTempHumiData {
     id: u16,
@@ -119,15 +130,16 @@ struct FmlTempHumiDataPoint {
 #[derive(Serialize, Clone, Debug, Deserialize)]
 struct FmlTempHumiKV {
     v: f32,
+    t: i64, //秒级时间戳
 }
 
 impl FmlTempHumiData {
-    pub fn new(id: u16, temp: f32, humi: f32) -> Self {
+    pub fn new(id: u16, temp: f32, humi: f32, t: i64) -> Self {
         FmlTempHumiData {
             id,
             dp: FmlTempHumiDataPoint {
-                temp: [FmlTempHumiKV { v: temp }],
-                humi: [FmlTempHumiKV { v: humi }],
+                temp: [FmlTempHumiKV { v: temp, t }],
+                humi: [FmlTempHumiKV { v: humi, t }],
             },
         }
     }
@@ -137,11 +149,17 @@ impl FmlTempHumiData {
 pub struct FmLTempNvm {
     /// temp humi detect interval min
     pub detect_inv: u32,
+    pub temp_alarm: (Option<f32>, Option<f32>),
+    pub humi_alarm: (Option<f32>, Option<f32>),
 }
 
 impl FmLTempNvm {
     pub fn default() -> Self {
-        Self { detect_inv: 5 }
+        Self {
+            detect_inv: 5,
+            temp_alarm: (None, None), // Some(-18.0)
+            humi_alarm: (None, None), //Some(80.0)
+        }
     }
 }
 
@@ -194,7 +212,23 @@ pub struct FmlGnssRawData {
     pub spkm: f32,
     pub spkn: f32,
     pub nsat: u8,
-    //ub utc_stamp: Option<f32>,
+    pub utc_stamp: i64,
+}
+impl FmlGnssRawData {
+    pub fn default() -> Self {
+        Self {
+            latitude: 0.0,
+            longitude: 0.0,
+            hdop: 0.0,
+            altitude: 0.0,
+            fix: 0,
+            cog: None,
+            spkm: 0.0,
+            spkn: 0.0,
+            nsat: 0,
+            utc_stamp: 0,
+        }
+    }
 }
 
 #[derive(Serialize, Clone, Debug, Deserialize)]

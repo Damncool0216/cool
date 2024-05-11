@@ -36,7 +36,9 @@ atat = { version = "0.22.0", default-features = false, features = [
     "bytes",
     "hex_str_arrays",
 ] }
-
+format_no_std = "1.2.0"
+chrono = { version = "0.4.38", default-features = false }
+num-traits = {version = "0.2.19", default-features = false}
 hal = { package = "esp-hal", version = "0.17.0", features = [
     "esp32c3",
     "embassy",
@@ -65,7 +67,7 @@ esp-storage = { git = "https://kkgithub.com/esp-rs/esp-storage", branch = "main"
 embassy-executor = { version = "0.5.0", features = [
     "integrated-timers",
     "arch-riscv32",
-    "task-arena-size-8192",
+    "task-arena-size-10240",
 ] }
 embassy-time = { version = "0.3.0" }
 embassy-sync = { version = "0.5.0", default-features = false }

@@ -21,6 +21,7 @@ pub mod gnss;
 pub mod gsensor;
 pub mod modem;
 pub mod tsensor;
+pub mod rtc;
 
 mod mlog;
 
@@ -49,6 +50,8 @@ pub(crate) enum Msg {
         ci: Option<u32>,
         act: Option<u8>,
     },
+    NetGetTimeReq,
+    NetGetTimeRpy(i64),
     NetMsgEnd,
 
     //Mqtt
@@ -82,6 +85,13 @@ pub(crate) enum Msg {
     GsensorMsgBegin,
     GsensorVibEvent,
     GsensorMsgEnd,
+
+    AlarmMsgBegin,
+    AlarmTempSendReq(f32),
+    AlarmTempSendRpy(bool),
+    AlarmHumiSendReq(f32),
+    AlarmHumiSendRpy(bool),
+    AlarmMsgEnd,
 }
 pub(crate) type MsgQueue<const N: usize> = Channel<CriticalSectionRawMutex, Msg, N>;
 
@@ -95,7 +105,8 @@ pub(crate) async fn msg_req(msg: Msg) {
     match msg {
         msg if (msg > Msg::GnssMsgBegin && msg < Msg::GnssMsgEnd)
             || (msg > Msg::MqttMsgBegin && msg < Msg::MqttMsgEnd)
-            || (msg > Msg::NetMsgBegin && msg < Msg::NetMsgEnd) =>
+            || (msg > Msg::NetMsgBegin && msg < Msg::NetMsgEnd)
+            || (msg > Msg::AlarmMsgBegin && msg < Msg::AlarmMsgEnd) =>
         {
             modem::msg_req(msg).await
         }
@@ -119,6 +130,9 @@ pub(super) fn init(spawner: &Spawner) {
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
     let timer_group0 = TimerGroup::new_async(peripherals.TIMG0, &clocks);
     embassy::init(&clocks, timer_group0);
+
+    let rt = hal::rtc_cntl::Rtc::new(peripherals.LPWR, None);
+    spawner.spawn(rtc::pal_rtc_init_task(rt)).unwrap();
 
     //init uart at modem
     let config = uart::config::Config {

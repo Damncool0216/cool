@@ -1,3 +1,5 @@
+use core::str::FromStr;
+
 use atat::{AtatIngress, Ingress, ResponseSlot, UrcChannel};
 use ec800m_at::{
     client::asynch::Ec800mClient, digester::Ec800mDigester, general::types::OnOff, urc::URCMessages,
@@ -74,6 +76,7 @@ pub(super) async fn pal_at_client_task(writer: AtWriter<'static>) {
     at_client.urc_port_config().await.ok();
     at_client.creg_set(2).await.ok();
     at_client.mqtt_close(MqttClientIdx::IDX1).await.ok();
+    at_client.cmgf_set(1).await.ok();
     at_client.at_config_save().await.ok();
     at_client.gps_set_sw(OnOff::Off).await.ok();
     loop {
@@ -85,6 +88,7 @@ pub(super) async fn pal_at_client_task(writer: AtWriter<'static>) {
                 at_client.urc_port_config().await.ok();
                 at_client.creg_set(2).await.ok();
                 at_client.mqtt_close(MqttClientIdx::IDX1).await.ok();
+                at_client.cmgf_set(1).await.ok();
                 at_client.at_config_save().await.ok();
                 at_client.gps_set_sw(OnOff::Off).await.ok();
             }
@@ -111,6 +115,7 @@ pub(super) async fn pal_at_client_task(writer: AtWriter<'static>) {
                         spkm: s.spkm,
                         spkn: s.spkn,
                         nsat: s.nsat,
+                        utc_stamp: s.timestamp,
                     })))
                     .await
                 } else {
@@ -133,6 +138,11 @@ pub(super) async fn pal_at_client_task(writer: AtWriter<'static>) {
             Msg::NetSimStatReq => {
                 if let Ok(s) = at_client.sim_query().await {
                     pal::msg_rpy(Msg::NetSimStatRpy(s)).await
+                }
+            }
+            Msg::NetGetTimeReq => {
+                if let Ok(t) = at_client.qlts_set().await {
+                    pal::msg_rpy(Msg::NetGetTimeRpy(t)).await
                 }
             }
             Msg::MqttOpenReq => {
@@ -201,7 +211,56 @@ pub(super) async fn pal_at_client_task(writer: AtWriter<'static>) {
                         .ok();
                 }
             }
-            _ => {}
+            Msg::AlarmTempSendReq(temp) => {
+                let mut phone = String::new();
+                let mut buf= [0;50];
+                let mut alarm_msg = String::from_str(format_no_std::show(
+                    &mut buf,
+                    format_args!("Temp Alarm!!! {}C", temp),
+                ).unwrap()).unwrap();
+                if let Some(fml_net_nvm) = &*FML_NET_NVM.lock().await {
+                    if let Some(s) = &fml_net_nvm.phone {
+                        phone = s.clone();
+                    } else {
+                        pal::msg_rpy(Msg::AlarmTempSendRpy(false)).await;
+                        continue;
+                    }
+                    if let Some(s) = &fml_net_nvm.temp_alarm_msg {
+                        alarm_msg = s.clone();
+                    }
+                }
+                info!("temp alarm sms send");
+                pal::msg_rpy(Msg::AlarmTempSendRpy(
+                    at_client.cmgs_set(phone, alarm_msg).await.is_ok(),
+                ))
+                .await;
+            }
+            Msg::AlarmHumiSendReq(humi) => {
+                let mut phone = String::new();
+                let mut buf= [0;50];
+                let mut alarm_msg = String::from_str(format_no_std::show(
+                    &mut buf,
+                    format_args!("Humi Alarm!!! {}%", humi),
+                ).unwrap()).unwrap();
+                
+                if let Some(fml_net_nvm) = &*FML_NET_NVM.lock().await {
+                    if let Some(s) = &fml_net_nvm.phone {
+                        phone = s.clone();
+                    } else {
+                        pal::msg_rpy(Msg::AlarmHumiSendRpy(false)).await;
+                        continue;
+                    }
+                    if let Some(s) = &fml_net_nvm.temp_alarm_msg {
+                        alarm_msg = s.clone();
+                    }
+                }
+                info!("humi alarm sms send");
+                pal::msg_rpy(Msg::AlarmHumiSendRpy(
+                    at_client.cmgs_set(phone, alarm_msg).await.is_ok(),
+                ))
+                .await;
+            }
+            _ => unreachable!(),
         }
     }
 }

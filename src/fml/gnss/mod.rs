@@ -1,8 +1,12 @@
 use core::sync::atomic::{AtomicU8, Ordering};
 
+use super::acc::fml_acc_status_get;
 use super::storage::*;
 use super::FmlDataProducer;
 use super::FmlGnssStatus;
+use crate::error;
+use crate::fml;
+use crate::fml::FmlSystimeUpdateSource;
 use crate::{
     info,
     pal::{self, Msg, MsgQueue},
@@ -86,42 +90,119 @@ pub async fn fml_gnss_control_task() {
     }
 }
 
+#[named]
+fn fml_gnss_check_error(gnss_data: &FmlGnssRawData) -> i8 {
+    let mut ret = 0;
+    if gnss_data.fix < 2 {
+        ret = -1;
+    } else if gnss_data.spkm > 300.0 {
+        ret = -2;
+    } else if let Some(course) = gnss_data.cog {
+        if course > 360.0 || course < 0.0 {
+            ret = -3;
+        }
+    } else if gnss_data.longitude == 0.0 || gnss_data.latitude == 0.0 {
+        ret = -4;
+    }
+    if ret != 0 {
+        error!("ret:{}", ret);
+    }
+    return ret;
+}
+
+fn fml_gnss_first_loc_filter(gnss_data: &FmlGnssRawData) -> bool {
+    if gnss_data.hdop > 3.5 {
+        return false;
+    }
+    return true;
+}
+
 #[embassy_executor::task]
 #[allow(unused_macros)]
 #[named]
 pub(super) async fn fml_gnss_data_filter_task(mut producer: FmlDataProducer<'static, FmlGnssData>) {
-    let mut cur_gnss = None;
+    let mut cur_gnss = FmlGnssRawData::default();
+    let mut last_gnss;
+    // let mut first = 1;
+    // let mut filter_tick = 0;
+    // let mut gps_baud_count = 0;
+    let mut gnss_filter_cnt = 0;
+    let mut abnormal_cnt = 0;
     loop {
+        let mut is_fix = false;
         let msg = FML_GNSS_DATA_QUEUE.receive().await;
         info!("{:?}", msg);
         match msg {
             Msg::GnssGetLoactionRpy(new_gnss) => {
-                if true {
-                    cur_gnss = new_gnss;
-                }
-                if let Some(s) = &cur_gnss {
-                    if s.fix == 3 {
-                        fml_gnss_status_set(FmlGnssStatus::Fix3D).await;
-                    } else {
-                        fml_gnss_status_set(FmlGnssStatus::Fix2D).await;
+                is_fix = loop {
+                    if fml_gnss_status_get() == FmlGnssStatus::Off {
+                        gnss_filter_cnt = 0;
+                        break false;
                     }
-                    let data = FmlGnssData::new(1, s.longitude, s.latitude);
-                    producer.enqueue(data).ok();
-                    info!("gnss enqueue!!! {}/{}", producer.len(), producer.capacity());
-                    super::net::fml_net_mqtt_pub_req().await;
-                }
+                    if new_gnss.is_none() {
+                        info!("new_gnss not fix");
+                        gnss_filter_cnt = 0;
+                        break false;
+                    }
+                    last_gnss = cur_gnss.clone();
+                    cur_gnss = new_gnss.clone().unwrap();
+                    if fml_gnss_check_error(&cur_gnss) != 0 {
+                        break false;
+                    }
+
+                    if gnss_filter_cnt < 2 && !fml_gnss_first_loc_filter(&cur_gnss) {
+                        gnss_filter_cnt = gnss_filter_cnt + 1;
+                        break false;
+                    }
+                    if cur_gnss.spkm > 5.0
+                        && cur_gnss.latitude == last_gnss.latitude
+                        && cur_gnss.longitude == last_gnss.longitude
+                    {
+                        abnormal_cnt = abnormal_cnt + 1;
+                        error!("abnormal_cnt: {}", abnormal_cnt);
+                        break false;
+                    }
+                    abnormal_cnt = 0;
+                    break true;
+                };
             }
-            _ => {}
+            Msg::GnssGetLocationReq => {}
+            _ => {
+                unreachable!();
+            }
         }
+        info!("is_fix:{}", is_fix);
+        if is_fix {
+            if cur_gnss.fix == 2 {
+                fml_gnss_status_set(FmlGnssStatus::Fix2D).await;
+            } else if cur_gnss.fix == 3 {
+                fml_gnss_status_set(FmlGnssStatus::Fix3D).await;
+            }
+            fml::fml_system_time_set(FmlSystimeUpdateSource::Gnss, Some(cur_gnss.utc_stamp)).await;
+            let data = FmlGnssData::new(1, cur_gnss.longitude, cur_gnss.latitude);
+            producer.enqueue(data).ok();
+            info!(
+                "gnss enqueue!!! {}/{} at {}",
+                producer.len(),
+                producer.capacity(),
+                fml::fml_system_time_get_ms().await
+            );
+            super::net::fml_net_mqtt_pub_req().await;
+        }
+
         let gnss_state = fml_gnss_status_get();
-        if gnss_state < FmlGnssStatus::On || gnss_state == FmlGnssStatus::NotOpen {
+        if fml_acc_status_get() == FmlAccStatus::Off
+            || gnss_state < FmlGnssStatus::On
+            || gnss_state == FmlGnssStatus::NotOpen
+        {
             pal::msg_req(Msg::GnssCloseReq).await;
             continue;
         }
-        if fml_gnss_status_get() < FmlGnssStatus::Fix2D {
-            embassy_time::Timer::after_secs(5).await;
-        } else {
+
+        if is_fix {
             embassy_time::Timer::after_secs(30).await;
+        } else {
+            embassy_time::Timer::after_secs(5).await;
         }
         pal::msg_req(Msg::GnssGetLocationReq).await;
     }

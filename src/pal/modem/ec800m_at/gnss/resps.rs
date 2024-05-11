@@ -1,13 +1,25 @@
+use crate::pal::modem::ec800m_at::parse_num;
+
 use super::types::{NmeaStr, NmeaVec};
 use atat::{
     atat_derive::AtatResp,
     digest::ParseError,
-    heapless::String,
     helpers::LossyStr,
-    nom::{bytes, character, combinator, sequence},
+    nom::{
+        bytes::{self, complete::take},
+        character,
+        combinator::{self, map_parser, map_res},
+        number::complete::double,
+        sequence::{self, tuple},
+        IResult,
+    },
     Error,
 };
-use log::{debug, error};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use core::str;
+use log::{debug, error, info};
+
+use num_traits::float::FloatCore;
 
 /// NmeaResp
 #[derive(Debug, Clone, AtatResp, PartialEq)]
@@ -69,7 +81,6 @@ impl From<&[u8]> for NmeaResp {
 /// NmeaResp
 #[derive(Debug, Clone, AtatResp, PartialEq)]
 pub struct GpsLocResp {
-    pub utc: String<30>, //字符串类型。UTC 时间。格式：hhmmss.ss（引自 GPGGA 语句）。
     pub latitude: f32,
     pub longitude: f32,
     pub hdop: f32,
@@ -78,8 +89,72 @@ pub struct GpsLocResp {
     pub cog: Option<f32>,
     pub spkm: f32,
     pub spkn: f32,
-    pub date: String<30>,
     pub nsat: u8,
+    pub timestamp: i64,
+}
+
+pub fn parse_hms(i: &str) -> IResult<&str, NaiveTime> {
+    map_res(
+        tuple((
+            map_res(take(2usize), parse_num::<u32>),
+            map_res(take(2usize), parse_num::<u32>),
+            map_parser(take(5usize), double),
+        )),
+        |(hour, minutes, sec)| -> core::result::Result<NaiveTime, &'static str> {
+            info!("{hour} {minutes} {sec}");
+            if sec.is_sign_negative() {
+                return Err("Invalid time: second is negative");
+            }
+            if hour >= 24 {
+                return Err("Invalid time: hour >= 24");
+            }
+            if minutes >= 60 {
+                return Err("Invalid time: min >= 60");
+            }
+            if sec >= 60. {
+                return Err("Invalid time: sec >= 60");
+            }
+            NaiveTime::from_hms_nano_opt(
+                hour,
+                minutes,
+                sec.trunc() as u32,
+                (sec.fract() * 1_000_000_000f64).round() as u32,
+            )
+            .ok_or("Invalid time")
+        },
+    )(i)
+}
+
+pub(crate) fn parse_date(i: &str) -> IResult<&str, NaiveDate> {
+    map_res(
+        tuple((
+            map_res(take(2usize), parse_num::<u8>),
+            map_res(take(2usize), parse_num::<u8>),
+            map_res(take(2usize), parse_num::<u8>),
+        )),
+        |data| -> Result<NaiveDate, &'static str> {
+            let (day, month, year) = (u32::from(data.0), u32::from(data.1), i32::from(data.2));
+
+            // We only receive a 2digit year code in this message, this has the potential
+            // to be ambiguous regarding the year. We assume that anything above 83 is 1900's, and
+            // anything above 0 is 2000's.
+            //
+            // The reason for 83 is that NMEA0183 was released in 1983.
+            // Parsing dates from ZDA messages is preferred, since it includes a 4 digit year.
+            let year = match year {
+                83..=99 => year + 1900,
+                _ => year + 2000,
+            };
+
+            if !(1..=12).contains(&month) {
+                return Err("Invalid month < 1 or > 12");
+            }
+            if !(1..=31).contains(&day) {
+                return Err("Invalid day < 1 or > 31");
+            }
+            NaiveDate::from_ymd_opt(year, month, day).ok_or("Invalid date")
+        },
+    )(i)
 }
 
 impl GpsLocResp {
@@ -125,7 +200,7 @@ pub(crate) fn parse_gps_loc(buf: &[u8]) -> Result<GpsLocResp, ParseError> {
             get_parm(",", b','),
             combinator::map_parser(get_parm(",", b','), character::complete::u8),
         ))(buf)?;
-    let utc = byte_to_str(utc)?;
+
     let latitude = byte_to_f32(latitude)?;
     let longitude = byte_to_f32(longitude)?;
     let hdop = byte_to_f32(hdop)?;
@@ -138,11 +213,18 @@ pub(crate) fn parse_gps_loc(buf: &[u8]) -> Result<GpsLocResp, ParseError> {
     };
     let spkm = byte_to_f32(spkm)?;
     let spkn = byte_to_f32(spkn)?;
-    let date = byte_to_str(date)?;
     let nsat: u8 = nsat;
 
+    let utc = byte_to_str(utc)?;
+    info!("utc{}", utc);
+    let utc = parse_hms(utc).map_err(|_| ParseError::NoMatch)?.1;
+    let date = byte_to_str(date)?;
+    info!("date{}", date);
+    let date = parse_date(date).map_err(|_| ParseError::NoMatch)?.1;
+
+    let data_time = NaiveDateTime::new(date, utc);
+    let timestamp = data_time.and_utc().timestamp();
     let res = GpsLocResp {
-        utc: String::try_from(utc).unwrap(),
         latitude,
         longitude,
         hdop,
@@ -151,8 +233,8 @@ pub(crate) fn parse_gps_loc(buf: &[u8]) -> Result<GpsLocResp, ParseError> {
         cog,
         spkm,
         spkn,
-        date: String::try_from(date).unwrap(),
         nsat,
+        timestamp,
     };
     Ok(res)
 }

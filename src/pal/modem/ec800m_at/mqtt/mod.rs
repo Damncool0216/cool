@@ -11,6 +11,7 @@ pub mod asynch {
     use atat::Error;
     use embedded_io_async::Write;
     use log::debug;
+    use log::error;
     use serde_json_core::heapless::String;
 
     impl<'a, W: Write, const INGRESS_BUF_SIZE: usize> Client<'a, W, INGRESS_BUF_SIZE> {
@@ -67,7 +68,10 @@ pub mod asynch {
             debug!("{:?}", cmd);
             let resp = self.client.send(&cmd).await;
             match resp {
-                Err(Error::Timeout) => self.send_data(&data).await,
+                Err(Error::Timeout) => {
+                    error!("mqtt_publish timeout");
+                    self.send_data(&data).await
+                }
                 Ok(s) => {
                     debug! {"{:?}", s};
                     self.send_data(&data).await
@@ -76,7 +80,7 @@ pub mod asynch {
             }
         }
 
-        async fn send_data(&mut self, data: &str) -> Result<bool, Error> {
+        pub async fn send_data(&mut self, data: &str) -> Result<bool, Error> {
             let cmd = SendData { data };
             debug!("{:?}", cmd);
             let resp = self.client.send(&cmd).await?;

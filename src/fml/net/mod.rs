@@ -6,7 +6,7 @@ use function_name::named;
 use serde_json_core::heapless::mpmc::Q8;
 
 use crate::{
-    debug, info,
+    debug, fml, info,
     pal::{self, Msg, MsgQueue},
 };
 
@@ -88,10 +88,16 @@ async fn fml_net_att_status_set(new_status: FmlNetAttachStatus, force: bool) {
             if fml_net_conn_status_get() < FmlNetConnStatus::Connecting {
                 fml_net_conn_status_set(FmlNetConnStatus::Connecting, false).await;
             }
+            if fml::fml_system_time_get_ms().await == 0 {
+                pal::msg_req(Msg::NetGetTimeReq).await;
+            }
         }
         FmlNetAttachStatus::LTEService => {
             if fml_net_conn_status_get() < FmlNetConnStatus::Connecting {
                 fml_net_conn_status_set(FmlNetConnStatus::Connecting, false).await;
+            }
+            if fml::fml_system_time_get_ms().await == 0 {
+                pal::msg_req(Msg::NetGetTimeReq).await;
             }
         }
     }
@@ -136,6 +142,9 @@ pub(super) async fn fml_net_status_task() {
                 } else {
                     fml_net_att_status_set(FmlNetAttachStatus::NoSim, true).await;
                 }
+            }
+            Msg::NetGetTimeRpy(utc) => {
+                fml::fml_system_time_set(fml::FmlSystimeUpdateSource::Net, Some(utc)).await;
             }
 
             Msg::MqttOpenRpy(open) => {
@@ -210,11 +219,19 @@ pub(super) async fn fml_net_send_task(
                         match s {
                             FmlNetSendType::TempHumi(..) => {
                                 t_comsumer.dequeue();
-                                info!("temp humi dequeue!!! {}/{}", t_comsumer.len(), t_comsumer.capacity());
+                                info!(
+                                    "temp humi dequeue!!! {}/{}",
+                                    t_comsumer.len(),
+                                    t_comsumer.capacity()
+                                );
                             }
                             FmlNetSendType::Location(..) => {
                                 g_comsumer.dequeue();
-                                info!("gnss dequeue!!! {}/{}", g_comsumer.len(), g_comsumer.capacity());
+                                info!(
+                                    "gnss dequeue!!! {}/{}",
+                                    g_comsumer.len(),
+                                    g_comsumer.capacity()
+                                );
                             }
                         }
                     }
@@ -243,6 +260,7 @@ pub(super) async fn msg_rpy(msg: Msg) {
     match msg {
         Msg::NetAttachStatRpy { .. } => FML_NET_ATTA_QUEUE.send(msg).await,
         Msg::NetSimStatRpy(..) => FML_NET_ATTA_QUEUE.send(msg).await,
+        Msg::NetGetTimeRpy(..) => FML_NET_ATTA_QUEUE.send(msg).await,
         Msg::MqttOpenRpy(..) | Msg::MqttConnRpy(..) | Msg::MqttCloseRpy(..) => {
             FML_NET_ATTA_QUEUE.send(msg).await
         }
